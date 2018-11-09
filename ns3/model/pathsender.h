@@ -54,6 +54,7 @@ public:
 	sim_segment_t *get_segment(uint16_t seq,bool retrans,uint32_t ts);
 	uint32_t get_delay();
 	uint32_t get_len();
+    uint32_t GetCost();
 	uint32_t GetSentBufSize(){return sent_buf_.size();}
 	void UpdateMinRtt(uint32_t rtt);
 	void UpdateRtt(uint32_t time,uint32_t now);
@@ -63,7 +64,6 @@ public:
 	void IncomingFeedBack(sim_feedback_t* feedback);
 	void SenderUpdateBase(uint32_t base_id);
 	void SendToNetwork(uint8_t*data,uint32_t len);
-
 	void RegisterSenderInterface(SenderInterface*s){ mpsender_=s;}
 	void Stop();
 	void SendConnect();
@@ -124,6 +124,7 @@ private:
 	rtc::CriticalSection retrans_mutex_;
 	uint32_t last_sentbuf_collect_ts_;
 	uint32_t len_;//byte
+    uint32_t pending_len_;
 	ProcessModule *pm_;
 	webrtc::Clock *clock_;
 	webrtc::PacedSender *send_bucket_;

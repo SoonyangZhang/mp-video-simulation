@@ -4,6 +4,7 @@
 #include "roundrobinschedule.h"
 #include "scaleschedule.h"
 #include "wrrschedule.h"
+#include "balancecostschedule.h"
 #include "mpcommon.h"
 #include "videosource.h"
 #include"ns3/event-id.h"
@@ -33,7 +34,8 @@ private:
 	AggregateRate ratecontrol_;
 	//RoundRobinSchedule schedule_;
     //ScaleSchedule schedule_;
-    WrrSchedule schedule_;
+    //WrrSchedule schedule_;
+    BalanceCostSchedule schedule_;
 	EventId m_timer;
 };
 }

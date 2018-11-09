@@ -36,6 +36,7 @@ PathSender::PathSender()
 ,s_sent_ts_(0)
 ,controller_(NULL)
 ,len_(0)
+,pending_len_(0)
 {
 	bin_stream_init(&strm_);
 	stop_=false;
@@ -141,6 +142,7 @@ bool PathSender::TimeToSendPacket(uint32_t ssrc,
 			cc->OnSentPacket(sentPacket);
 		}
 		UpdatePaceQueueDelay(seg->send_ts);
+        pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
 		delete seg;
 	}
 	return true;
@@ -220,6 +222,7 @@ bool PathSender::put(sim_segment_t*seg){
 	uint16_t id=trans_seq_;	
 	trans_seq_++;
 	len_+=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
+    pending_len_+=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
 	{
 		rtc::CritScope cs(&buf_mutex_);
 		buf_.insert(std::make_pair(id,seg));
@@ -279,6 +282,17 @@ uint32_t PathSender::get_delay(){
 }
 uint32_t PathSender::get_len(){
 	return len_;
+}
+uint32_t PathSender::GetCost(){
+    uint32_t cost=0;
+    float expect_pending=0;
+    if(rate_==0){
+        expect_pending=0;
+    }else{
+        expect_pending=(float)pending_len_*8*1000/rate_;
+    }
+    float temp=expect_pending+rtt_/2;
+    cost=(uint32_t)temp;
 }
 void PathSender::UpdateMinRtt(uint32_t rtt){
 	if(min_rtt_==0){

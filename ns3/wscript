@@ -17,8 +17,10 @@ def build(bld):
     'model/fakevideoconsumer.cc',
     'model/mpvideoheader.cc',
     'model/scaleschedule.cc',
+    'model/balancecostschedule.cc',
     'model/wrr.cc',
     'model/wrrschedule.cc',
+    'model/mptrace.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -42,7 +44,9 @@ def build(bld):
     'model/fakevideoconsumer.h',
     'model/mpvideoheader.h',
     'model/scaleschedule.h',
+    'model/balancecostschedule.h',
     'model/wrr.h',
     'model/wrrschedule.h',
+    'model/mptrace.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

@@ -6,6 +6,8 @@
 #include "pathreceiver.h"
 #include "ns3/simulationclock.h"
 #include "ns3/event-id.h"
+#include "ns3/callback.h"
+#include "mptrace.h"
 namespace ns3{
 struct video_packet_t{
 	uint8_t pid;
@@ -15,6 +17,7 @@ struct video_frame_t{
 	uint32_t fid;
 	uint32_t total;
 	uint32_t recv;
+    uint32_t first_ts;
 	uint32_t ts;//  newest timestamp;
 	int64_t waitting_ts;//waitting for lost packet
 	//the max time to deliver packet
@@ -33,6 +36,8 @@ public:
     uint32_t GetUid() override{return uid_;}
 	void RegisterPath(Ptr<PathReceiver> path);
     void StopCallback() override;
+    typedef Callback<void,uint32_t,uint32_t> GapCallback;
+    void SetGapCallback(GapCallback cb){m_gapCb=cb;}
 private:
 	Ptr<PathReceiver> GetPathInfo(uint8_t);
 	bool DeliverFrame(video_frame_t *f);
@@ -59,6 +64,7 @@ private:
 	SimulationClock clock_;
 	bool first_packet_;
 	EventId hbTimer_;
+    GapCallback m_gapCb;
 };
 }
 #endif /* SIM_TRANSPORT_MPRECEIVER_H_ */

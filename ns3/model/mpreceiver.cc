@@ -65,6 +65,10 @@ void MultipathReceiver::StopCallback(){
 bool MultipathReceiver::DeliverFrame(video_frame_t *f){
 	bool ret=false;
 	uint32_t fid=f->fid;
+    uint32_t delta=f->ts-f->first_ts;
+    if(!m_gapCb.IsNull()){
+        m_gapCb(fid,delta);
+    }
 	if(deliver_){
 		uint32_t size=0;
 		uint32_t buf_size=0;
@@ -265,6 +269,9 @@ void MultipathReceiver::DeliverToCache(uint8_t pid,sim_segment_t* d){
 		seg_c_++;
 	}
 	uint32_t now=rtc::TimeMillis();
+    if(frame->first_ts==0){
+        frame->first_ts=now;
+    }
 	packet->pid=pid;
 	//packet->ts=now;
 	sim_segment_t *seg=&(packet->seg);
