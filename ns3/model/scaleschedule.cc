@@ -5,7 +5,7 @@
 #include <map>
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("ScaleSchedule");
-void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
+void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	uint32_t totalrate=0;
 	uint32_t packet_num=packets.size();
 	std::map<uint8_t,uint32_t> pathrate;
@@ -16,8 +16,13 @@ void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
 	for(auto it=pids_.begin();it!=pids_.end();it++){
 		uint8_t pid=(*it);
 		Ptr<PathSender> path=sender_->GetPathInfo(pid);
-		if(path->rate_!=0){
-			uint32_t rate=path->rate_;
+        uint32_t rate=0;
+		if(cost_type_==CostType::c_intant){
+			rate=path->GetIntantRate();
+		}else{
+			rate=path->GetSmoothRate();
+		}
+		if(rate!=0){
 			totalrate+=rate;
 			pathrate.insert(std::make_pair(pid,rate));
 		}
@@ -85,25 +90,6 @@ void ScaleSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 }
 void ScaleSchedule::RetransPackets(std::map<uint32_t,uint32_t>&packets){
 
-}
-void ScaleSchedule::RegisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();it++){
-		if((*it)==pid){
-			return;
-		}
-	}
-	pids_.push_back(pid);
-}
-void ScaleSchedule::UnregisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();){
-		if((*it)==pid){
-			it=pids_.erase(it);
-			break;
-		}
-		else{
-			it++;
-		}
-	}
 }
 }
 

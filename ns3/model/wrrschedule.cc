@@ -7,7 +7,7 @@
 #include<string>
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("WrrSchedule");
-void WrrSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
+void WrrSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	uint32_t totalrate=0;
 	uint32_t packet_num=packets.size();
 	std::map<uint8_t,uint32_t> pathrate;
@@ -19,10 +19,15 @@ void WrrSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
 	for(auto it=pids_.begin();it!=pids_.end();it++){
 		uint8_t pid=(*it);
 		Ptr<PathSender> path=sender_->GetPathInfo(pid);
-		if(path->rate_!=0){
-			uint32_t rate=path->rate_;
-			totalrate+=rate;
-			pathrate.insert(std::make_pair(pid,rate));
+        uint32_t rate=0;
+		if(cost_type_==CostType::c_intant){
+			rate=path->GetIntantRate();
+		}else{
+			rate=path->GetSmoothRate();
+		}
+		if(rate!=0){
+		totalrate+=rate;
+		pathrate.insert(std::make_pair(pid,rate));
 		}
 	}
 	std::map<uint32_t,uint32_t>path_weight;
@@ -71,24 +76,5 @@ void WrrSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 }
 void WrrSchedule::RetransPackets(std::map<uint32_t,uint32_t>&packets){
 
-}
-void WrrSchedule::RegisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();it++){
-		if((*it)==pid){
-			return;
-		}
-	}
-	pids_.push_back(pid);
-}
-void WrrSchedule::UnregisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();){
-		if((*it)==pid){
-			it=pids_.erase(it);
-			break;
-		}
-		else{
-			it++;
-		}
-	}
 }
 }

@@ -6,7 +6,7 @@
 #include<string>
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("BalanceCostSchedule");
-void BalanceCostSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
+void BalanceCostSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	uint32_t totalrate=0;
 	uint32_t packet_num=packets.size();
 	std::map<uint8_t,uint32_t> pathrate;
@@ -18,8 +18,13 @@ void BalanceCostSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
 	for(auto it=pids_.begin();it!=pids_.end();it++){
 		uint8_t pid=(*it);
 		Ptr<PathSender> path=sender_->GetPathInfo(pid);
-		if(path->rate_!=0){
-			uint32_t rate=path->rate_;
+        uint32_t rate=0;
+		if(cost_type_==CostType::c_intant){
+			rate=path->GetIntantRate();
+		}else{
+			rate=path->GetSmoothRate();
+		}
+		if(rate!=0){			
 			totalrate+=rate;
 			pathrate.insert(std::make_pair(pid,rate));
 		}
@@ -33,7 +38,12 @@ void BalanceCostSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets){
 		for(;path_rate_it!=pathrate.end();path_rate_it++){
 			uint8_t pathid=path_rate_it->first;
 			path=sender_->GetPathInfo(pathid);
-			uint32_t temp_cost=path->GetCost();
+			uint32_t temp_cost=0;
+			if(cost_type_==CostType::c_intant){
+				temp_cost=path->GetCost();
+			}else{
+				temp_cost=path->GetSmoothCost();
+			}
 			if(temp_cost<min_cost){
 				min_cost=temp_cost;
 				min_pid=pathid;
@@ -55,25 +65,6 @@ void BalanceCostSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 }
 void BalanceCostSchedule::RetransPackets(std::map<uint32_t,uint32_t>&packets){
 
-}
-void BalanceCostSchedule::RegisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();it++){
-		if((*it)==pid){
-			return;
-		}
-	}
-	pids_.push_back(pid);
-}
-void BalanceCostSchedule::UnregisterPath(uint8_t pid){
-	for(auto it=pids_.begin();it!=pids_.end();){
-		if((*it)==pid){
-			it=pids_.erase(it);
-			break;
-		}
-		else{
-			it++;
-		}
-	}
 }
 }
 

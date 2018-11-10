@@ -6,7 +6,7 @@
 #include "sim_proto.h"
 #include "sessioninterface.h"
 #include "cf_stream.h"
-
+#include "pathsender.h" //for data collection.
 #include "rtc_base/timeutils.h"
 #include "modules/congestion_controller/include/receive_side_congestion_controller.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
@@ -22,6 +22,7 @@
 #include "ns3/processmodule.h"
 #include "ns3/mpvideoheader.h"
 #include "ns3/simulationclock.h"
+#include "ns3/callback.h"
 namespace ns3{
 class PathReceiver :public webrtc::PacketRouter
 ,public Application{
@@ -65,6 +66,10 @@ public:
 	void SetClock(webrtc::Clock*clock);
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
+	void SetSourceEnd(Ptr<PathSender>sender){sender_=sender;}
+	void SetRecordId(uint8_t rid){record_id_ =rid;}
+	typedef Callback<void,uint8_t,uint32_t> LatencyCallback;
+	void SetPacketDelayTrace(LatencyCallback cb){delay_cb_=cb;}
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -112,6 +117,9 @@ private:
     SimulationClock m_clock;
     webrtc::RemoteBitrateEstimator *rbe_;
     EventId pingTimer_;
+    Ptr<PathSender> sender_;
+    uint8_t record_id_{0};
+    LatencyCallback delay_cb_;
 };
 }
 

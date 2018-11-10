@@ -5,6 +5,7 @@
 #include "scaleschedule.h"
 #include "wrrschedule.h"
 #include "balancecostschedule.h"
+#include "edcldschedule.h"
 #include "mpcommon.h"
 #include "videosource.h"
 #include"ns3/event-id.h"
@@ -33,9 +34,10 @@ private:
 	SenderInterface *sender_;
 	AggregateRate ratecontrol_;
 	//RoundRobinSchedule schedule_;
-    //ScaleSchedule schedule_;
-    //WrrSchedule schedule_;
-    BalanceCostSchedule schedule_;
+    //ScaleSchedule schedule_{CostType::c_intant};
+    //WrrSchedule schedule_{CostType::c_intant};
+    //BalanceCostSchedule schedule_{CostType::c_intant};
+    EDCLDSchedule schedule_{0.2};
 	EventId m_timer;
 };
 }

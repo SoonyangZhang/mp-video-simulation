@@ -4,15 +4,13 @@
 namespace ns3{
 class ScaleSchedule:public Schedule{
 public:
-	ScaleSchedule(){}
+	ScaleSchedule(uint8_t type){cost_type_=type;}
 	~ScaleSchedule(){}
-	void IncomingPackets(std::map<uint32_t,uint32_t>&packets) override;
+	void IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size) override;
 	void RetransPackets(std::map<uint32_t,uint32_t>&packets) override;
 	void RoundRobin(std::map<uint32_t,uint32_t>&packets);
-	void RegisterPath(uint8_t pid) override;
-	void UnregisterPath(uint8_t pid) override;
 private:
-	std::vector<uint8_t> pids_;
+	uint8_t cost_type_;
 };
 }
 

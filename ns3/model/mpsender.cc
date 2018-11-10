@@ -75,6 +75,7 @@ void MultipathSender::AddAvailablePath(uint8_t pid){
 }
 void MultipathSender::SchedulePendingBuf(){
 	std::map<uint32_t,uint32_t> pending_info;
+	uint32_t total=0;
 	{
 		if(!pending_buf_.empty()){
 			sim_segment_t *seg=NULL;
@@ -85,12 +86,13 @@ void MultipathSender::SchedulePendingBuf(){
 				seg=it->second;
 				len=seg->data_size+SIM_SEGMENT_HEADER_SIZE;
 				pending_info.insert(std::make_pair(id,len));
+				total+=len;
 			}
 		}
 	}
 	if(!pending_info.empty()){
 		if(scheduler_){
-			scheduler_->IncomingPackets(pending_info);
+			scheduler_->IncomingPackets(pending_info,total);
 		}
 	}
 }

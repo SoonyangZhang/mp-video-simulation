@@ -49,12 +49,17 @@ public:
 	                      int64_t rtt_ms,
 	                      int64_t probing_interval_ms) override;
 	void ConfigureCongestion();
-
+	uint32_t GetFirstTs();
 	bool put(sim_segment_t*seg);
 	sim_segment_t *get_segment(uint16_t seq,bool retrans,uint32_t ts);
 	uint32_t get_delay();
 	uint32_t get_len();
     uint32_t GetCost();
+    uint32_t GetSmoothCost();
+    uint32_t GetSmoothRate(){return s_rate_;}
+    uint32_t GetIntantRate(){return rate_;}
+    uint32_t GetMinRtt(){return min_rtt_;}
+    uint32_t GetPendingLen(){return pending_len_;}
 	uint32_t GetSentBufSize(){return sent_buf_.size();}
 	void UpdateMinRtt(uint32_t rtt);
 	void UpdateRtt(uint32_t time,uint32_t now);
@@ -107,6 +112,7 @@ public:
 	uint16_t trans_seq_;
 	uint32_t packet_seed_;
 	uint32_t rate_;
+	uint32_t s_rate_;
 	uint32_t base_seq_;
 	uint32_t s_sent_ts_;
 private:

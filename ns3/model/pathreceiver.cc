@@ -173,8 +173,8 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		CheckPing();
 		first_packet_=false;
 	}
+	uint32_t now=rtc::TimeMillis();
 	{
-		uint32_t now=rtc::TimeMillis();
 		uint32_t overhead=seg->data_size + SIM_SEGMENT_HEADER_SIZE;
         if(overhead>1500)
         {
@@ -205,12 +205,18 @@ NS_LOG_INFO("overhead "<<overhead<<"seq"<<seg->transport_seq);
 	max_seq_=SU_MAX(max_seq_,seq);
 	UpdataRecvTable(seq);
 	VideoRealAck(0,seq);
+	if(!delay_cb_.IsNull()){
+		uint32_t firstTs=sender_->GetFirstTs();
+		uint32_t temp=seg->send_ts+seg->timestamp+firstTs;
+		uint32_t owd=now-temp;
+		delay_cb_(record_id_,owd);
+	}
 	if(mpreceiver_){
 		mpreceiver_->DeliverToCache(pid,seg);
 	}
-    uint32_t min_seq=GetMinRecvSeq();
-    uint32_t loss_size=GetLossTableSize();
-    uint32_t delay=seg->send_ts;
+    //uint32_t min_seq=GetMinRecvSeq();
+    //uint32_t loss_size=GetLossTableSize();
+    //uint32_t delay=seg->send_ts;
     //printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
    // 		pid,seg->fid,seq,base_seq_,max_seq_,seg->ftype,min_seq,loss_size,delay);
 }

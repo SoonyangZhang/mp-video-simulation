@@ -32,6 +32,7 @@ PathSender::PathSender()
 ,trans_seq_(1)
 ,packet_seed_(1)
 ,rate_(0)
+,s_rate_(0)
 ,base_seq_(0)
 ,s_sent_ts_(0)
 ,controller_(NULL)
@@ -151,13 +152,13 @@ void PathSender::OnNetworkChanged(uint32_t bitrate_bps,
         uint8_t fraction_loss,  // 0 - 255.
         int64_t rtt_ms,
         int64_t probing_interval_ms){
-    if(rate_==0){
-        rate_=bitrate_bps;
-    }else{
-        uint32_t smooth=(rate_*SMOOTH_RATE_NUM+(SMOOTH_RATE_DEN-SMOOTH_RATE_NUM)*bitrate_bps)/SMOOTH_RATE_DEN;
-        rate_=smooth;
-    }
-    
+	if(s_rate_==0){
+		s_rate_=bitrate_bps;
+	}else{
+		uint32_t smooth=(s_rate_*SMOOTH_RATE_NUM+(SMOOTH_RATE_DEN-SMOOTH_RATE_NUM)*bitrate_bps)/SMOOTH_RATE_DEN;
+		s_rate_=smooth;
+	}
+	rate_=bitrate_bps;
 	if(mpsender_){
 		mpsender_->OnNetworkChanged(pid,bitrate_bps,fraction_loss,rtt_ms);
 	}
@@ -182,6 +183,13 @@ void PathSender::ConfigureCongestion(){
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
     pm_->RegisterModule(cc,RTC_FROM_HERE);
     pm_->Start();
+}
+uint32_t PathSender::GetFirstTs(){
+	uint32_t firstTs=0;
+	if(mpsender_){
+		firstTs=mpsender_->GetFirstTs();
+	}
+	return firstTs;
 }
 bool  PathSender::QueueDropper(sim_segment_t *seg){
     bool ret=false;
@@ -293,6 +301,19 @@ uint32_t PathSender::GetCost(){
     }
     float temp=expect_pending+rtt_/2;
     cost=(uint32_t)temp;
+    return cost;
+}
+uint32_t PathSender::GetSmoothCost(){
+    uint32_t cost=0;
+    float expect_pending=0;
+    if(s_rate_==0){
+        expect_pending=0;
+    }else{
+        expect_pending=(float)pending_len_*8*1000/s_rate_;
+    }
+    float temp=expect_pending+rtt_/2;
+    cost=(uint32_t)temp;
+    return cost;
 }
 void PathSender::UpdateMinRtt(uint32_t rtt){
 	if(min_rtt_==0){
@@ -635,6 +656,7 @@ void PathSender::ProcessingMsg(bin_stream_t *stream){
 			return;
         uint32_t now=Simulator::Now().GetMilliSeconds();
         rtt_=now-ack.cid;
+        UpdateMinRtt(rtt_);
         rtt_update_ts_=now;
 		if(mpsender_&&(state!=path_conned)){
              NS_LOG_INFO("CON ACK");

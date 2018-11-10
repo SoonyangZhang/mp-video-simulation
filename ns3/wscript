@@ -7,6 +7,7 @@ def build(bld):
     'model/sim_proto.c',
     'model/cf_crc32.c',
     'model/posix.c',
+    'model/schedule.cc',
     'model/pathsender.cc',
     'model/mpsender.cc',
     'model/pathreceiver.cc',
@@ -20,6 +21,7 @@ def build(bld):
     'model/balancecostschedule.cc',
     'model/wrr.cc',
     'model/wrrschedule.cc',
+    'model/edcldschedule.cc',
     'model/mptrace.cc',
 	]
     headers = bld(features='ns3header')
@@ -47,6 +49,7 @@ def build(bld):
     'model/balancecostschedule.h',
     'model/wrr.h',
     'model/wrrschedule.h',
+    'model/edcldschedule.h',
     'model/mptrace.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")
