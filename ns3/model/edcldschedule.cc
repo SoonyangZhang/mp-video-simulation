@@ -118,10 +118,38 @@ void EDCLDSchedule::UpdateCostAndPsiTable(uint32_t now,uint32_t len){
 			it->second=updata_cost;
 		}
 	}
+	/* bugs, The map is sorted by key,not by value,
 	auto best_it=cost_table_.begin();
 	auto worst_it=cost_table_.rbegin();
 	uint8_t best_pid=best_it->first;
 	uint32_t worst_pid=worst_it->first;
+	so change it.
+	*/
+	uint8_t best_pid=0;
+	uint8_t worst_pid=0;
+	{
+		auto it=cost_table_.begin();
+		uint8_t min_cost_pid=it->first;
+		float min_cost=it->second;
+		uint8_t max_cost_pid=min_cost_pid;
+		float max_cost=min_cost;
+		it++;
+		for(;it!=cost_table_.end();it++){
+			uint8_t temp_pid=it->first;
+			float temp_cost=it->second;
+			if(temp_cost>max_cost){
+				max_cost=temp_cost;
+				max_cost_pid=temp_pid;
+			}
+			if(temp_cost<min_cost){
+				min_cost=temp_cost;
+				min_cost_pid=temp_pid;
+			}
+		}
+		best_pid=min_cost_pid;
+		worst_pid=max_cost_pid;
+	}
+
 	auto best_psi_it=psi_table_.find(best_pid);
 	auto worst_psi_it=psi_table_.find(worst_pid);
 	uint32_t D_best=0;
