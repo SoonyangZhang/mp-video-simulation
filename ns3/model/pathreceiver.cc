@@ -206,10 +206,13 @@ NS_LOG_INFO("overhead "<<overhead<<"seq"<<seg->transport_seq);
 	UpdataRecvTable(seq);
 	VideoRealAck(0,seq);
 	if(!delay_cb_.IsNull()){
-		uint32_t firstTs=sender_->GetFirstTs();
+		uint32_t firstTs=0;
+        if(sender_){
+            firstTs=sender_->GetFirstTs();
+        }
 		uint32_t temp=seg->send_ts+seg->timestamp+firstTs;
 		uint32_t owd=now-temp;
-		delay_cb_(record_id_,owd);
+		delay_cb_(seg->packet_id,owd);
 	}
 	if(mpreceiver_){
 		mpreceiver_->DeliverToCache(pid,seg);

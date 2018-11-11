@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include "ns3/mp-video-module.h"
 #include "ns3/webrtc-ns3-module.h"
-
+#include <string>
 using namespace ns3;
 using namespace std;
 NS_LOG_COMPONENT_DEFINE ("ptr-test");
@@ -62,19 +62,23 @@ int main(){
     //LogComponentEnable("PathReceiver",LOG_LEVEL_ALL);
     //LogComponentEnable("FakeVideoGenerator",LOG_LEVEL_ALL);
     //LogComponentEnable("ScaleSchedule",LOG_LEVEL_ALL);
-    LogComponentEnable("WrrSchedule",LOG_LEVEL_ALL);
+    //LogComponentEnable("WrrSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
     SetClockForWebrtc();//that's a must
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
+    std::string schedule_prefix=std::string("scale");
+    std::string gapname=schedule_prefix;
+    Mptrace trace;
+    trace.OpenTraceFile(gapname);
     MultipathReceiver receiver(12);
+    receiver.SetGapCallback(MakeCallback(&Mptrace::FrameRecvGap,&trace));
     NodeContainer nodes=BuildExampleTopo(2000000,100,200);
     nodes.Get(0)->AddApplication (spath1);
     nodes.Get(1)->AddApplication (rpath1);
     spath1->Bind(1234);
     rpath1->Bind(4321);
-
 	Ptr<PathSender> spath2=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath2=CreateObject<PathReceiver>();
     NodeContainer nodes2=BuildExampleTopo(1000000,150,200);
@@ -83,6 +87,26 @@ int main(){
     spath2->Bind(1234);
     rpath2->Bind(4321);
 
+    int record_id=1;
+
+    std::string delay_name=schedule_prefix+std::to_string(record_id);
+    record_id++;
+    TraceDelayInfo trace_d_p1;
+    trace_d_p1.OpenTracePendingDelayFile(delay_name);
+    trace_d_p1.OpenTraceOwdFile(delay_name);
+
+    spath1->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p1));
+    rpath1->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p1));
+    rpath1->SetSourceEnd(spath1);
+    delay_name=schedule_prefix+std::to_string(record_id);
+    record_id++;
+    TraceDelayInfo trace_d_p2;
+    trace_d_p2.OpenTracePendingDelayFile(delay_name);
+    trace_d_p2.OpenTraceOwdFile(delay_name);
+
+    spath2->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p2));
+    rpath2->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p2));
+    rpath2->SetSourceEnd(spath2);
 
     sender.RegisterPath(spath1);
     receiver.RegisterPath(rpath1);
@@ -95,6 +119,8 @@ int main(){
     
     FakeVideoConsumer sink;
     receiver.RegisterDataSink(&sink);
+    std::string sinkname=schedule_prefix;
+    sink.SetTraceName(sinkname);
     std::vector<InetSocketAddress> addr;
     addr.push_back(spath1->GetLocalAddress());
     addr.push_back(rpath1->GetLocalAddress());
@@ -114,6 +140,6 @@ int main(){
     Simulator::Stop (Seconds(stopTime + 10.0));
     Simulator::Run ();
     Simulator::Destroy();
-    
+    trace.CloseTraceFile();
     
 }

@@ -144,6 +144,9 @@ bool PathSender::TimeToSendPacket(uint32_t ssrc,
 		}
 		UpdatePaceQueueDelay(seg->send_ts);
         pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
+        if(!pending_delay_cb_.IsNull()){
+        	pending_delay_cb_(seg->packet_id,seg->send_ts);
+        }
 		delete seg;
 	}
 	return true;

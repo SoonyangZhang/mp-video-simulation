@@ -211,6 +211,12 @@ void EDCLDSchedule::UpdateCostAndPsiTable(uint32_t now,uint32_t len){
 void EDCLDSchedule::ResetCostAndPsiTable(){
 	std::map<uint8_t,uint32_t> pathrate;
 	uint32_t totalrate=0;
+	// when the key exist, the map.insert() operation will not work;
+	//delete it first or map[key]=value;
+	while(!cost_table_.empty()){
+		auto it=cost_table_.begin();
+		cost_table_.erase(it);
+	}
 	GetUsablePath(pathrate,totalrate);
 	for(auto it=pathrate.begin();it!=pathrate.end();it++){
 		uint8_t temp_pid=it->first;

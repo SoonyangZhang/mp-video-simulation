@@ -27,7 +27,7 @@
 #include "ns3/proxyobserver.h"
 #include "ns3/mpvideoheader.h"
 #include "ns3/simulationclock.h"
-#include "modules/congestion_controller/include/send_side_congestion_controller.h"
+#include "ns3/callback.h"
 namespace ns3{
 class PathSender:public webrtc::PacedSender::PacketSender,
 public webrtc::SendSideCongestionController::Observer,
@@ -64,7 +64,8 @@ public:
 	void UpdateMinRtt(uint32_t rtt);
 	void UpdateRtt(uint32_t time,uint32_t now);
 	send_buf_t * GetSentPacketInfo(uint32_t seq);
-
+	typedef Callback<void,uint32_t,uint32_t> PendingLatency;
+	void SetPendingDelayTrace(PendingLatency cb){pending_delay_cb_=cb;}
 	void RecvSegAck(sim_segment_ack_t* ack);
 	void IncomingFeedBack(sim_feedback_t* feedback);
 	void SenderUpdateBase(uint32_t base_id);
@@ -139,6 +140,7 @@ private:
     EventId rxTimer_;
     EventId gcTimer_;
     SimulationClock m_clock;
+    PendingLatency pending_delay_cb_;
 };
 }
 

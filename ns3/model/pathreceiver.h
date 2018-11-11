@@ -67,8 +67,7 @@ public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
 	void SetSourceEnd(Ptr<PathSender>sender){sender_=sender;}
-	void SetRecordId(uint8_t rid){record_id_ =rid;}
-	typedef Callback<void,uint8_t,uint32_t> LatencyCallback;
+	typedef Callback<void,uint32_t,uint32_t> LatencyCallback;
 	void SetPacketDelayTrace(LatencyCallback cb){delay_cb_=cb;}
 private:
 	virtual void StartApplication() override;
@@ -118,7 +117,6 @@ private:
     webrtc::RemoteBitrateEstimator *rbe_;
     EventId pingTimer_;
     Ptr<PathSender> sender_;
-    uint8_t record_id_{0};
     LatencyCallback delay_cb_;
 };
 }

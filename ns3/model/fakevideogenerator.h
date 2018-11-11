@@ -34,10 +34,10 @@ private:
 	SenderInterface *sender_;
 	AggregateRate ratecontrol_;
 	//RoundRobinSchedule schedule_;
-    //ScaleSchedule schedule_{CostType::c_intant};
+    ScaleSchedule schedule_{CostType::c_intant};
     //WrrSchedule schedule_{CostType::c_intant};
     //BalanceCostSchedule schedule_{CostType::c_intant};
-    EDCLDSchedule schedule_{0.2};
+    //EDCLDSchedule schedule_{0.2};
 	EventId m_timer;
 };
 }
