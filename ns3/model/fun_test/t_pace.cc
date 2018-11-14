@@ -103,8 +103,9 @@ void TPace::OnFrame(uint8_t*data,uint32_t len){
 }
 void TPace::ConfigurePace(){
 	pm_.reset(new ProcessModule());
-	send_bucket_.reset(new webrtc::PacedSender(&clock_, this, nullptr));
+	send_bucket_.reset(new TPacedSender(&clock_, this, nullptr));
 	send_bucket_->SetEstimatedBitrate(rate_);
+    send_bucket_->SetPacingFactor(1.0);
 	send_bucket_->SetProbingEnabled(false);
 	pm_->RegisterModule(send_bucket_.get(),RTC_FROM_HERE);
 	pm_->Start();

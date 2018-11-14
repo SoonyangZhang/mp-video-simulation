@@ -28,6 +28,7 @@ def build(bld):
     'model/fun_test/t_generator.cc',
     'model/fun_test/ratestatistics.cc',
     'model/fun_test/t_trace.cc',
+    'model/fun_test/t_pacer_sender.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -61,5 +62,6 @@ def build(bld):
     'model/fun_test/t_generator.h',
     'model/fun_test/ratestatistics.h',
     'model/fun_test/t_trace.h',
+    'model/fun_test/t_pacer_sender.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")
