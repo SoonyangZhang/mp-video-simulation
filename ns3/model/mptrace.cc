@@ -5,29 +5,54 @@
 #include "ns3/log.h"
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE ("Mptrace");
-Mptrace::~Mptrace(){
+TraceReceive::~TraceReceive(){
 	Close();
 }
-void Mptrace::OpenTraceFile(std::string filename){
+void TraceReceive::OpenTraceGapFile(std::string filename){
 	char buf[FILENAME_MAX];
 	memset(buf,0,FILENAME_MAX);
 	std::string gappath = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
 			+ filename+"_gap.txt";
 	m_frameGap.open(gappath.c_str(), std::fstream::out);
 }
-void Mptrace::CloseTraceFile(){
-	Close();
-}
-void Mptrace::FrameRecvGap(uint32_t fid,uint32_t duration){
-	char line [256];
-	memset(line,0,256);
-	sprintf (line, "%16d %16d",
-			fid,duration);
-	m_frameGap<<line<<std::endl;
-}
-void Mptrace::Close(){
+void TraceReceive::CloseTraceGapFile(){
 	if(m_frameGap.is_open()){
 		m_frameGap.close();
+	}
+}
+void TraceReceive::RecvGap(uint32_t fid,uint32_t duration){
+	char line [256];
+	memset(line,0,256);
+	if(m_frameGap.is_open()){
+		sprintf (line, "%16d %16d",
+				fid,duration);
+		m_frameGap<<line<<std::endl;
+	}
+}
+void TraceReceive::Close(){
+	CloseTraceGapFile();
+	CloseTraceRecvBufFile();
+}
+void TraceReceive::OpenTraceRecvBufFile(std::string filename){
+	char buf[FILENAME_MAX];
+	memset(buf,0,FILENAME_MAX);
+	std::string gappath = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
+			+ filename+"_buf.txt";
+	m_bufLen.open(gappath.c_str(), std::fstream::out);
+}
+void TraceReceive::CloseTraceRecvBufFile(){
+	if(m_bufLen.is_open()){
+		m_bufLen.close();
+	}
+}
+void TraceReceive::RecvBufLen(uint32_t len){
+	char line [256];
+	memset(line,0,256);
+	float now=Simulator::Now().GetSeconds();
+	if(m_bufLen.is_open()){
+		sprintf (line, "%f %16d",
+				now,len);
+		m_bufLen<<line<<std::endl;
 	}
 }
 TraceDelayInfo::~TraceDelayInfo(){

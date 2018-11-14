@@ -68,12 +68,14 @@ int main(){
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
-    std::string schedule_prefix=std::string("scale");
+    std::string schedule_prefix=std::string("bc");
     std::string gapname=schedule_prefix;
-    Mptrace trace;
-    trace.OpenTraceFile(gapname);
+    TraceReceive trace;
+    trace.OpenTraceGapFile(gapname);
+    trace.OpenTraceRecvBufFile(gapname);
     MultipathReceiver receiver(12);
-    receiver.SetGapCallback(MakeCallback(&Mptrace::FrameRecvGap,&trace));
+    receiver.SetGapCallback(MakeCallback(&TraceReceive::RecvGap,&trace));
+    receiver.SetRecvBufLenTrace(MakeCallback(&TraceReceive::RecvBufLen,&trace));
     NodeContainer nodes=BuildExampleTopo(2000000,100,200);
     nodes.Get(0)->AddApplication (spath1);
     nodes.Get(1)->AddApplication (rpath1);
@@ -116,7 +118,10 @@ int main(){
 
     FakeVideoGenerator source(MIN_SEND_BITRATE,30);
     source.RegisterSender(&sender);
-    
+    std::string ratename=schedule_prefix;
+    trace_d_p1.OpenTraceRateFile(ratename);
+    source.SetRateTraceCallback(MakeCallback(&TraceDelayInfo::RecvRate,&trace_d_p1));
+
     FakeVideoConsumer sink;
     receiver.RegisterDataSink(&sink);
     std::string sinkname=schedule_prefix;
@@ -140,6 +145,4 @@ int main(){
     Simulator::Stop (Seconds(stopTime + 10.0));
     Simulator::Run ();
     Simulator::Destroy();
-    trace.CloseTraceFile();
-    
 }

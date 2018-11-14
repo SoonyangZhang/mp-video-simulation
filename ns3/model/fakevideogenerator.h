@@ -41,8 +41,8 @@ private:
 	//RoundRobinSchedule schedule_;
     //ScaleSchedule schedule_{CostType::c_intant};
     //WrrSchedule schedule_{CostType::c_intant};
-    //BalanceCostSchedule schedule_{CostType::c_intant};
-    EDCLDSchedule schedule_{0.2};
+    BalanceCostSchedule schedule_{CostType::c_intant};
+    //EDCLDSchedule schedule_{0.2};
 	EventId m_timer;
 	RateCallback m_rate_cb_;
 };

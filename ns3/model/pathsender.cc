@@ -176,6 +176,7 @@ void PathSender::ConfigureCongestion(){
 		return;
 	}
 	send_bucket_=new webrtc::PacedSender(&m_clock, this, nullptr);
+   // send_bucket_=new TPacedSender(&m_clock, this, nullptr);
 	webrtc::SendSideCongestionController * cc=NULL;
 	cc=new webrtc::SendSideCongestionController(&m_clock,this,
     		&null_log_,send_bucket_);
@@ -244,7 +245,7 @@ bool PathSender::put(sim_segment_t*seg){
 	uint32_t uid=mpsender_->GetUid();
 	if(cc){
 		send_bucket_->InsertPacket(webrtc::PacedSender::kNormalPriority,uid,
-				id,now,seg->data_size/* + SIM_SEGMENT_HEADER_SIZE*/,false);
+				id,now,seg->data_size + SIM_SEGMENT_HEADER_SIZE,false);
 	}
 
 	return true;

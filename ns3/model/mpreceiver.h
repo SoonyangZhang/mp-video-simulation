@@ -38,6 +38,8 @@ public:
     void StopCallback() override;
     typedef Callback<void,uint32_t,uint32_t> GapCallback;
     void SetGapCallback(GapCallback cb){m_gapCb=cb;}
+    typedef Callback<void,uint32_t> RecvBufCallback;
+    void SetRecvBufLenTrace(RecvBufCallback cb){m_recv_len_cb_=cb;}
 private:
 	Ptr<PathReceiver> GetPathInfo(uint8_t);
 	bool DeliverFrame(video_frame_t *f);
@@ -65,6 +67,8 @@ private:
 	bool first_packet_;
 	EventId hbTimer_;
     GapCallback m_gapCb;
+    RecvBufCallback m_recv_len_cb_;
+    uint32_t recv_buf_len_{0};
 };
 }
 #endif /* SIM_TRANSPORT_MPRECEIVER_H_ */

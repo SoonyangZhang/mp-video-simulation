@@ -88,6 +88,7 @@ bool MultipathReceiver::DeliverFrame(video_frame_t *f){
 			packet=f->packets[i];
 			if(packet){
 				len=packet->seg.data_size;
+				recv_buf_len_-=len+SIM_SEGMENT_HEADER_SIZE;
 				data=(uint8_t*)(packet->seg.data);
 				memcpy(buf+offset,data,len);
 				offset+=len;
@@ -160,6 +161,7 @@ void MultipathReceiver::CheckDeliverFrame(){
 	video_frame_t *frame=NULL;
 	video_frame_t *waitting_for_delete=NULL;
 	uint32_t now=rtc::TimeMillis();
+	bool delivered=false;
 	for(auto it=frame_cache_.begin();it!=frame_cache_.end();){
 		frame=it->second;
 		waitting_for_delete=NULL;
@@ -182,11 +184,17 @@ void MultipathReceiver::CheckDeliverFrame(){
 			}
 		}
 		if(waitting_for_delete){
+			delivered=true;//just to trace the recvbuf len;
 			frame_cache_.erase(it++);
 			BuffCollection(waitting_for_delete);
 			delete waitting_for_delete;
 		}else{
 			break;
+		}
+	}
+	if(delivered){
+		if(!m_recv_len_cb_.IsNull()){
+			m_recv_len_cb_(recv_buf_len_);
 		}
 	}
 }
@@ -275,7 +283,8 @@ void MultipathReceiver::DeliverToCache(uint8_t pid,sim_segment_t* d){
 	packet->pid=pid;
 	//packet->ts=now;
 	sim_segment_t *seg=&(packet->seg);
-	memcpy(seg,d,sizeof(sim_segment_t));  
+	memcpy(seg,d,sizeof(sim_segment_t));
+	recv_buf_len_+=seg->data_size+SIM_SEGMENT_HEADER_SIZE;
     //if(frame->recv==0) 
     {
         frame->ts=now;

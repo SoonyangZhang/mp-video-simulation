@@ -4,16 +4,20 @@
 #include <fstream>
 #include <string>
 namespace ns3{
-class Mptrace{
+class TraceReceive{
 public:
-	Mptrace(){}
-	~Mptrace();
-	void OpenTraceFile(std::string filename);
-	void CloseTraceFile();
-	void FrameRecvGap(uint32_t fid,uint32_t duration);
+	TraceReceive(){}
+	~TraceReceive();
+	void OpenTraceGapFile(std::string filename);
+	void CloseTraceGapFile();
+	void OpenTraceRecvBufFile(std::string filename);
+	void CloseTraceRecvBufFile();
+	void RecvGap(uint32_t fid,uint32_t duration);
+	void RecvBufLen(uint32_t len);
 private:
 	void Close();
 	std::fstream m_frameGap;
+	std::fstream m_bufLen;
 };
 class TraceDelayInfo{
 public:

@@ -17,6 +17,7 @@
 #include "modules/pacing/paced_sender.h"
 #include "system_wrappers/include/clock.h"
 
+#include "ns3/t_pacer_sender.h"
 #include "ns3/simulator.h"
 #include "ns3/application.h"
 #include "ns3/socket.h"
@@ -135,6 +136,7 @@ private:
 	ProcessModule *pm_;
 	webrtc::Clock *clock_;
 	webrtc::PacedSender *send_bucket_;
+    //TPacedSender *send_bucket_;
 	webrtc::RtcEventLogNullImpl null_log_;
     EventId pingTimer_;
     EventId rxTimer_;
