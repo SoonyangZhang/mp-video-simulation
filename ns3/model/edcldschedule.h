@@ -17,11 +17,9 @@
  * here, T is the schedule duration or the frame generating rate.
  * \lambda*T=Length
  * The Optimization is min max C_p(\psi_p)
- * But still, To optimize problem is hard, and the solution of in appendix of the paper
- * can  be found in another paper,
+ * The solution of in appendix of the paper can be found in another paper of the same auther,
  * "Load Distribution with Queuing Delay Bound over Multipath Networks:
  * Rate Control Using Stochastic Delay Prediction".
-
  */
 #ifndef NS3_MPVIDEO_EDCLDSCHEDULE_H_
 #define NS3_MPVIDEO_EDCLDSCHEDULE_H_

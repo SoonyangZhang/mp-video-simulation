@@ -51,6 +51,15 @@ void TraceDelayInfo::OpenTraceOwdFile(std::string filename){
 		m_owd.open(owdpath.c_str(), std::fstream::out);
 	}
 }
+void TraceDelayInfo::OpenTraceRateFile(std::string filename){
+	char buf[FILENAME_MAX];
+	memset(buf,0,FILENAME_MAX);
+	std::string owdpath = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
+			+ filename+"_rate.txt";
+	if(!m_rate.is_open()){
+		m_rate.open(owdpath.c_str(), std::fstream::out);
+	}
+}
 void TraceDelayInfo::ClosePendingDelayFile(){
 	if(m_pending.is_open()){
 		m_pending.close();
@@ -61,13 +70,20 @@ void TraceDelayInfo::CloseOwdFile(){
 		m_owd.close();
 	}
 }
+void TraceDelayInfo::CloseRateFile(){
+	if(m_rate.is_open()){
+		m_rate.close();
+	}
+}
 void TraceDelayInfo::RecvOwd(uint32_t packet_id,uint32_t owd){
 	char line [256];
 	memset(line,0,256);
 	float now=Simulator::Now().GetSeconds();
 	sprintf(line, "%f %16d %16d",now,packet_id,
 			owd);
-	m_owd<<line<<std::endl;
+	if(m_owd.is_open()){
+		m_owd<<line<<std::endl;
+	}
 }
 void TraceDelayInfo::RecvPendDelay(uint32_t packet_id,uint32_t sent_ts){
 	char line [256];
@@ -75,11 +91,24 @@ void TraceDelayInfo::RecvPendDelay(uint32_t packet_id,uint32_t sent_ts){
 	float now=Simulator::Now().GetSeconds();
 	sprintf(line, "%f %16d %16d",now,packet_id,
 			sent_ts);
-	m_pending<<line<<std::endl;
+	if(m_pending.is_open()){
+		m_pending<<line<<std::endl;
+	}
+}
+void TraceDelayInfo::RecvRate(uint32_t bps){
+	char line [256];
+	memset(line,0,256);
+	float now=Simulator::Now().GetSeconds();
+	float rate=(float)(bps)/1000;
+	sprintf(line, "%f %16f",now,rate);
+	if(m_rate.is_open()){
+		m_rate<<line<<std::endl;
+	}
 }
 void TraceDelayInfo::Close(){
 	ClosePendingDelayFile();
 	CloseOwdFile();
+	CloseRateFile();
 }
 }
 

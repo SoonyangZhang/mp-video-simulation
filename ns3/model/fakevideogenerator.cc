@@ -29,7 +29,10 @@ void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	if(first_ts_==0){
 		first_ts_=now;
 	}
-	uint32_t elapse=now-first_ts_;
+	if(!m_rate_cb_.IsNull()){
+		m_rate_cb_(bitrate);
+	}
+	//uint32_t elapse=now-first_ts_;
 	//NS_LOG_INFO("t "<<elapse<<" r "<<rate_);
 }
 void FakeVideoGenerator::RegisterSender(SenderInterface *s){

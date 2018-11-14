@@ -7,6 +7,7 @@ def build(bld):
     'model/sim_proto.c',
     'model/cf_crc32.c',
     'model/posix.c',
+    'model/mpcommon.cc',
     'model/schedule.cc',
     'model/pathsender.cc',
     'model/mpsender.cc',
@@ -23,6 +24,10 @@ def build(bld):
     'model/wrrschedule.cc',
     'model/edcldschedule.cc',
     'model/mptrace.cc',
+    'model/fun_test/t_pace.cc',
+    'model/fun_test/t_generator.cc',
+    'model/fun_test/ratestatistics.cc',
+    'model/fun_test/t_trace.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -51,5 +56,10 @@ def build(bld):
     'model/wrrschedule.h',
     'model/edcldschedule.h',
     'model/mptrace.h',
+    'model/fun_test/t_interface.h',
+    'model/fun_test/t_pace.h',
+    'model/fun_test/t_generator.h',
+    'model/fun_test/ratestatistics.h',
+    'model/fun_test/t_trace.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

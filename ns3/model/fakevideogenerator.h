@@ -8,7 +8,8 @@
 #include "edcldschedule.h"
 #include "mpcommon.h"
 #include "videosource.h"
-#include"ns3/event-id.h"
+#include "ns3/event-id.h"
+#include "ns3/callback.h"
 namespace ns3{
 //rate_  in bps;
 class FakeVideoGenerator :public RateChangeCallback
@@ -22,6 +23,10 @@ public:
 	void Generate();
 	void Start() override;
 	void Stop() override;
+	typedef Callback<void,uint32_t> RateCallback;
+	void SetRateTraceCallback(RateCallback cb){
+		m_rate_cb_=cb;
+	}
 private:
 	uint32_t min_bitrate_;
 	uint32_t fs_;
@@ -34,11 +39,12 @@ private:
 	SenderInterface *sender_;
 	AggregateRate ratecontrol_;
 	//RoundRobinSchedule schedule_;
-    ScaleSchedule schedule_{CostType::c_intant};
+    //ScaleSchedule schedule_{CostType::c_intant};
     //WrrSchedule schedule_{CostType::c_intant};
     //BalanceCostSchedule schedule_{CostType::c_intant};
-    //EDCLDSchedule schedule_{0.2};
+    EDCLDSchedule schedule_{0.2};
 	EventId m_timer;
+	RateCallback m_rate_cb_;
 };
 }
 

@@ -74,5 +74,7 @@ public:
 	virtual bool Fd2Addr(su_socket,su_addr *)=0;
 	virtual void PathStateForward(int type,int value)=0;
 };
+#define MAX_SPLIT_NUMBER	1024
+uint16_t FrameSplit(uint16_t splits[], size_t size);
 }
 #endif /* SIM_TRANSPORT_MPCOMMON_H_ */
