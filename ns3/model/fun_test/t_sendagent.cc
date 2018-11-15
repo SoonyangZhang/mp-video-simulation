@@ -48,7 +48,11 @@ bool TSendAgent::TimeToSendPacket(uint32_t ssrc,
 		header.ver=pid_;
 		sim_encode_msg(&stream_, &header, seg);
 		SendToNetwork(stream_.data,stream_.used);
-        NS_LOG_INFO("sent out");
+        if(!owd_cb_.IsNull()){
+            sent_ts_map_.insert(std::make_pair(sequence_number,now));
+        }
+        
+        //NS_LOG_INFO("sent out");
 		if(now-last_log_pending_ts_>log_pending_time_){
 			if(!pending_len_cb_.IsNull()){
 				pending_len_cb_(pending_len_);
@@ -85,7 +89,7 @@ InetSocketAddress TSendAgent::GetLocalAddress(){
     Ipv4Address local_ip = ipv4->GetAddress (1, 0).GetLocal ();
 	return InetSocketAddress{local_ip,bind_port_};
 }
-void TSendAgent::SetDestination(InetSocketAddress &addr){
+void TSendAgent::SetDestination(InetSocketAddress addr){
 	peer_ip_=addr.GetIpv4();
 	peer_port_=addr.GetPort();
 }
@@ -131,9 +135,11 @@ void TSendAgent::ProcessingMsg(bin_stream_t *stream){
 	switch(header.mid){
 	case SIM_FEEDBACK:{
 		sim_feedback_t feedback;
+        //NS_LOG_INFO("recv feedback");
 		if (sim_decode_msg(stream, &header, &feedback) != 0)
 			return;
 		IncomingFeedBack(&feedback);
+        break;
 	}
 	default:
 	{
@@ -149,11 +155,20 @@ void TSendAgent::IncomingFeedBack(sim_feedback_t* feedback){
 	std::vector<webrtc::PacketFeedback> feedback_vector = ReceivedPacketFeedbackVector(
 	transport_feedback_adapter_.GetTransportFeedbackVector());
 	SortPacketFeedbackVector(&feedback_vector);
+    uint32_t now=Simulator::Now().GetMilliSeconds();
 	for(auto it=feedback_vector.begin();it!=feedback_vector.end();it++){
 		webrtc::PacketFeedback &info=(*it);
-		if(!pending_delay_cb_.IsNull()){
+		if(!owd_cb_.IsNull()){
+            uint16_t seq=info.sequence_number;
+            uint32_t sent_ts=0;
+            auto sent_it=sent_ts_map_.find(seq);
+            if(sent_it!=sent_ts_map_.end()){
+                sent_ts=sent_it->second;
+                sent_ts_map_.erase(sent_it);
+            }
 			uint32_t delta=info.arrival_time_ms-info.send_time_ms;
-			pending_delay_cb_(info.sequence_number,delta);
+            // there is a time offset in transport_feedback_adapter.cc
+			owd_cb_(seq,sent_ts,info.arrival_time_ms,delta);
 		}
 	}
 
@@ -220,7 +235,7 @@ void TSendAgent::ConfigurePace(){
 	pm_.reset(new ProcessModule());
 	send_bucket_.reset(new TPacedSender(&clock_, this, nullptr));
 	send_bucket_->SetEstimatedBitrate(rate_);
-    send_bucket_->SetPacingFactor(1.0);
+    send_bucket_->SetPacingFactor(1.2);
 	send_bucket_->SetProbingEnabled(false);
 	pm_->RegisterModule(send_bucket_.get(),RTC_FROM_HERE);
 	pm_->Start();

@@ -28,6 +28,8 @@ public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
 	bool SendTransportFeedback(webrtc::rtcp::TransportFeedback* packet) override;
+	typedef Callback<void,uint16_t,uint32_t> RecvTs;
+	void SetTraceRecvTs(RecvTs cb){recv_ts_cb_=cb;}
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -43,11 +45,12 @@ private:
     uint32_t uid_{4321};
 	uint8_t pid_;
 	bool first_packet_{true};
-	SimulationClock m_clock;
+	SimulationClock clock_;
 	bin_stream_t	stream_;
 	std::unique_ptr<ProcessModule> pm_;
 	bool running_{false};
 	std::unique_ptr<webrtc::RemoteEstimatorProxy> remote_estimator_proxy_;
+	RecvTs recv_ts_cb_;
 };
 }
 

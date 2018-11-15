@@ -42,10 +42,11 @@ public:
 	void SetPendingDelayTrace(PendingLatency cb){pending_delay_cb_=cb;}
 	typedef Callback<void,uint32_t> PendingLength;
 	void SetPendingLenTrace(PendingLength cb){pending_len_cb_=cb;}
-
+	typedef Callback<void,uint16_t,uint32_t,uint32_t,uint32_t> OneWayDelay;
+	void SetOwdTrace(OneWayDelay cb){owd_cb_=cb;}
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
-	void SetDestination(InetSocketAddress &addr);
+	void SetDestination(InetSocketAddress addr);
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -74,12 +75,14 @@ private:
 	//std::unique_ptr<webrtc::PacedSender> send_bucket_;
     std::unique_ptr<TPacedSender> send_bucket_;
 	std::map<uint16_t,sim_segment_t*> buf_;
+    std::map<uint16_t,uint32_t> sent_ts_map_;
 	uint32_t pending_len_{0};
 	int64_t first_ts_{-1};
 	PacketSentObserver *observer_{NULL};
 	uint32_t rate_{1000000};
 	PendingLatency pending_delay_cb_;
 	PendingLength pending_len_cb_;
+	OneWayDelay owd_cb_;
 	uint32_t uid_{1234};
 	uint8_t pid_{1};
 	uint32_t log_pending_time_{200};
