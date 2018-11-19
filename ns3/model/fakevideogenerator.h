@@ -6,6 +6,7 @@
 #include "wrrschedule.h"
 #include "balancecostschedule.h"
 #include "edcldschedule.h"
+#include "sflschedule.h"
 #include "mpcommon.h"
 #include "videosource.h"
 #include "ns3/event-id.h"
@@ -41,8 +42,9 @@ private:
 	//RoundRobinSchedule schedule_;
     //ScaleSchedule schedule_{CostType::c_intant};
     //WrrSchedule schedule_{CostType::c_intant};
-    BalanceCostSchedule schedule_{CostType::c_intant};
+    //BalanceCostSchedule schedule_{CostType::c_intant};
     //EDCLDSchedule schedule_{0.2};
+    SFLSchedule schedule_;
 	EventId m_timer;
 	RateCallback m_rate_cb_;
 };
