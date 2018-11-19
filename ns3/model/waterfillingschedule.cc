@@ -1,9 +1,9 @@
-#include "sflschedule.h"
+#include "waterfillingschedule.h"
 #include "ns3/log.h"
 #include "pathsender.h"
 namespace ns3{
-NS_LOG_COMPONENT_DEFINE("SFLSchedule");
-void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
+NS_LOG_COMPONENT_DEFINE("WaterFillingSchedule");
+void WaterFillingSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	if(pids_.size()==1){
 		RoundRobin(packets);
 		return;
@@ -14,7 +14,7 @@ void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t s
 		Ptr<PathSender> path=sender_->GetPathInfo(pid);
 		path_water_t water;
 		water.pid=pid;
-		water.owd=path->rtt_/2;
+		water.owd=path->GetCost();
 		water.bps=path->GetIntantRate();
 		water.byte=0;
 		if(water.bps>0){
@@ -58,10 +58,10 @@ void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t s
 		}
 	}
 }
-void SFLSchedule::RetransPackets(std::map<uint32_t,uint32_t>&packets){
+void WaterFillingSchedule::RetransPackets(std::map<uint32_t,uint32_t>&packets){
 
 }
-void SFLSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
+void WaterFillingSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 	uint8_t total=pids_.size();
     uint32_t last_index=0;
 	for(auto it=packets.begin();it!=packets.end();it++){
@@ -72,7 +72,7 @@ void SFLSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 		sender_->PacketSchedule(packet_id,pid);
 	}
 }
-void SFLSchedule::AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint32_t filling,uint32_t step){
+void WaterFillingSchedule::AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint32_t filling,uint32_t step){
 	int i=0;
     uint32_t compensate=0;
 	for(i=0;;i++){
@@ -83,7 +83,7 @@ void SFLSchedule::AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint
 		}
 	}
 }
-uint32_t SFLSchedule::GetTotalWater(std::map<uint32_t,path_water_t> &watertable,uint32_t compensate){
+uint32_t WaterFillingSchedule::GetTotalWater(std::map<uint32_t,path_water_t> &watertable,uint32_t compensate){
 	uint32_t water=0;
 	int depth=0;
 	{
@@ -101,7 +101,6 @@ uint32_t SFLSchedule::GetTotalWater(std::map<uint32_t,path_water_t> &watertable,
 	return water;
 }
 }
-
 
 
 

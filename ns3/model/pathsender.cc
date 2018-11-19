@@ -136,12 +136,9 @@ bool PathSender::TimeToSendPacket(uint32_t ssrc,
 		SendToNetwork(strm_.data,strm_.used);
         if(cc){
         cc->AddPacket(uid,sequence_number,seg->data_size+SIM_SEGMENT_HEADER_SIZE,webrtc::PacedPacketInfo());
-        }
 		rtc::SentPacket sentPacket((int64_t)sequence_number,now);
-		if(cc)
-		{
-			cc->OnSentPacket(sentPacket);
-		}
+		cc->OnSentPacket(sentPacket);
+        }
 		UpdatePaceQueueDelay(seg->send_ts);
         pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
         if(!pending_delay_cb_.IsNull()){
@@ -166,9 +163,56 @@ void PathSender::OnNetworkChanged(uint32_t bitrate_bps,
 		mpsender_->OnNetworkChanged(pid,bitrate_bps,fraction_loss,rtt_ms);
 	}
 }
+int  PathSender::SendPadding(uint16_t payload_len,uint32_t ts){
+    sim_header_t header;
+	uint32_t uid=mpsender_->GetUid();
+	sim_pad_t pad;
+	uint8_t header_len=sizeof(sim_header_t)+sizeof(sim_pad_t);
+	pad.data_size=payload_len;
+	pad.send_ts=ts;
+	uint16_t sequence_number=trans_seq_;
+	pad.transport_seq=sequence_number;
+	trans_seq_++;
+	int overhead=header_len+payload_len;
+	INIT_SIM_HEADER(header, SIM_PAD, uid);
+	header.ver=pid;
+	sim_encode_msg(&strm_, &header, &pad);
+	SendToNetwork(strm_.data,strm_.used);
+    webrtc::SendSideCongestionController *cc=NULL;
+	cc=controller_->s_cc_;
+    if(cc){
+    cc->AddPacket(uid,sequence_number,overhead,webrtc::PacedPacketInfo());
+    rtc::SentPacket sentPacket((int64_t)sequence_number,ts);
+    cc->OnSentPacket(sentPacket);
+    }
+	return overhead;
+}
+#define MAX_PAD_SIZE 500
 size_t PathSender::TimeToSendPadding(size_t bytes,
 	                                 const webrtc::PacedPacketInfo& cluster_info){
-	NS_LOG_INFO("padding not implement");
+
+	uint32_t now=Simulator::Now().GetMilliSeconds();
+	int remain=bytes;
+	if(bytes<100){
+
+	}else{
+		while(remain>0)
+		{
+			if(remain>=MAX_PAD_SIZE){
+				int ret=SendPadding(MAX_PAD_SIZE,now);
+				remain-=ret;
+			}
+			else{
+				if(remain>=100){
+					SendPadding(remain,now);
+				}
+				if(remain>0){
+					remain=0;
+				}
+			}
+		}
+	}
+	NS_LOG_INFO(std::to_string(pid)<<" padding "<<std::to_string(bytes));
 	return bytes;
 }
 void PathSender::ConfigureCongestion(){
@@ -183,7 +227,7 @@ void PathSender::ConfigureCongestion(){
 	controller_=new CongestionController(cc,ROLE::ROLE_SENDER);
 	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, 5 * kInitialBitrateBps);
 	send_bucket_->SetEstimatedBitrate(kInitialBitrateBps);
-    send_bucket_->SetProbingEnabled(false);
+    send_bucket_->SetProbingEnabled(true);
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
     pm_->RegisterModule(cc,RTC_FROM_HERE);
     pm_->Start();

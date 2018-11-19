@@ -93,7 +93,7 @@ private:
 	virtual void StopApplication() override;
 	void RecvPacket(Ptr<Socket> socket);
 	void ProcessingMsg(bin_stream_t *stream);
-
+	int SendPadding(uint16_t payload_len,uint32_t ts);
 public:
     Ipv4Address peer_ip_;
     uint16_t peer_port_;

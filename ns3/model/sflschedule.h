@@ -13,7 +13,6 @@ typedef struct{
 	uint32_t owd;
 	uint32_t bps;
 	int32_t byte;
-	uint32_t number;
 }path_water_t;
 class SFLSchedule :public Schedule{
 public:
@@ -23,7 +22,7 @@ public:
 	void RetransPackets(std::map<uint32_t,uint32_t>&packets) override;
 	void RoundRobin(std::map<uint32_t,uint32_t>&packets);
 private:
-	void AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint32_t filling);
+	void AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint32_t filling,uint32_t step);
 	uint32_t GetTotalWater(std::map<uint32_t,path_water_t> &watertable,uint32_t compensate);
 };
 }

@@ -178,7 +178,7 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		uint32_t overhead=seg->data_size + SIM_SEGMENT_HEADER_SIZE;
         if(overhead>1500)
         {
-NS_LOG_INFO("overhead "<<overhead<<"seq"<<seg->transport_seq);
+            NS_LOG_INFO("overhead "<<overhead<<"seq"<<seg->transport_seq);
         }      
 		webrtc::RTPHeader fakeHeader;
 		fakeHeader.ssrc=header->uid;
@@ -503,6 +503,35 @@ void PathReceiver::ProcessingMsg(bin_stream_t *stream,Address &addr){
 		OnReceiveSegment(&header,&body);
 		break;
 	}
+	case SIM_PAD:{
+		sim_pad_t body;
+		uint8_t temp_pid=header.ver;
+		if (sim_decode_msg(stream, &header, &body) != 0){
+			return;
+		}
+		if(pid!=temp_pid){
+			return;
+		}
+
+		uint32_t now=rtc::TimeMillis();
+		{
+			uint8_t header_len=sizeof(sim_header_t)+sizeof(sim_pad_t);
+			uint32_t overhead=body.data_size + header_len;
+	        if(overhead>1500)
+	        {
+	            NS_LOG_INFO("overhead "<<overhead<<"seq"<<body.transport_seq);
+	        }
+			webrtc::RTPHeader fakeHeader;
+			fakeHeader.ssrc=header.uid;
+			fakeHeader.extension.hasTransportSequenceNumber=true;
+			fakeHeader.extension.transportSequenceNumber=body.transport_seq;
+			webrtc::ReceiveSideCongestionController *cc=NULL;
+			cc=controller_->r_cc_;
+			cc->OnReceivedPacket(now,overhead,fakeHeader);
+		}
+
+		break;
+	}
 	case SIM_PING:{
 		sim_header_t h;
 		sim_ping_t ping;
@@ -525,6 +554,7 @@ void PathReceiver::ProcessingMsg(bin_stream_t *stream,Address &addr){
         break;
 	}
 	default:{
+		NS_LOG_ERROR("unknow message");
 		break;
 	}
 	}

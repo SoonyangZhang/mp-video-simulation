@@ -45,7 +45,7 @@ void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t
 					path_array[path_counter]=pid;
 					path_counter++;
 				}
-			break;
+			    break;
 			}else{
 				if(remain>0){
 					pathpacket.insert(std::make_pair(pid,num));
