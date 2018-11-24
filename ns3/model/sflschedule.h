@@ -7,6 +7,7 @@
 #ifndef NS3_MPVIDEO_SFLSCHEDULE_H_
 #define NS3_MPVIDEO_SFLSCHEDULE_H_
 #include "schedule.h"
+#include <vector>
 namespace ns3{
 typedef struct{
 	uint8_t pid;
@@ -22,8 +23,8 @@ public:
 	void RetransPackets(std::map<uint32_t,uint32_t>&packets) override;
 	void RoundRobin(std::map<uint32_t,uint32_t>&packets);
 private:
-	void AllocateWater(std::map<uint32_t,path_water_t> &watertable,uint32_t filling,uint32_t step);
-	uint32_t GetTotalWater(std::map<uint32_t,path_water_t> &watertable,uint32_t compensate);
+	void AllocateWater(std::vector<path_water_t> &watertable,uint32_t filling,uint32_t step);
+	uint32_t GetTotalWater(std::vector<path_water_t> &watertable,uint32_t compensate);
 };
 }
 

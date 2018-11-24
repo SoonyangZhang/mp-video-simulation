@@ -3,8 +3,16 @@
 #include "ns3/simulator.h"
 #include "ns3/log.h"
 #include <map>
+#include <vector>
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("ScaleSchedule");
+struct Key{
+uint8_t pid;
+uint32_t rtt;
+};
+bool Key_Comparator(const Key&a,const Key&b){
+	return a.rtt<b.rtt;
+}
 void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	uint32_t totalrate=0;
 	uint32_t packet_num=packets.size();
@@ -13,44 +21,45 @@ void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t
 		RoundRobin(packets);
 		return;
 	}
+	std::vector<Key> delay_path;
 	for(auto it=pids_.begin();it!=pids_.end();it++){
 		uint8_t pid=(*it);
 		Ptr<PathSender> path=sender_->GetPathInfo(pid);
         uint32_t rate=0;
+        uint32_t rtt=path->rtt_;
 		if(cost_type_==CostType::c_intant){
 			rate=path->GetIntantRate();
 		}else{
 			rate=path->GetSmoothRate();
 		}
 		if(rate!=0){
+			Key key;
+			key.pid=pid;
+			key.rtt=rtt;
 			totalrate+=rate;
+			delay_path.push_back(key);
 			pathrate.insert(std::make_pair(pid,rate));
 		}
 	}
+	std::sort(delay_path.begin(),delay_path.end(),Key_Comparator);
 	int useable_path=pathrate.size();
-	uint8_t *path_array=new uint8_t [useable_path];
 	int i=0;
-	int path_counter=0;
 	std::map<uint8_t,uint32_t> pathpacket;
 	uint32_t remain=packet_num;
 	{
 		auto it=pathrate.begin();
 		double rate=(double)it->second;
 		for(i=0;i<useable_path;i++){
-			uint32_t num=(uint32_t)(remain*rate/totalrate+0.5);
+			uint32_t num=(uint32_t)(packet_num*rate/totalrate+0.5);
 			uint8_t pid=it->first;
 			if((i+1)==useable_path){
 				if(remain>0){
 					pathpacket.insert(std::make_pair(pid,remain));
-					path_array[path_counter]=pid;
-					path_counter++;
 				}
 			    break;
 			}else{
 				if(remain>0){
 					pathpacket.insert(std::make_pair(pid,num));
-					path_array[path_counter]=pid;
-					path_counter++;
 				}
 			}
 			it++;
@@ -61,11 +70,11 @@ void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t
 		RoundRobin(packets);
 	}else{
 		auto it=packets.begin();
-		for(i=0;i<path_counter;i++){
+		for(auto delay_path_it=delay_path.begin();delay_path_it!=delay_path.end();delay_path_it++){
 			int j=0;
-			uint8_t temp_pid=path_array[i];
-			auto pathit=pathpacket.find(temp_pid);
-			uint32_t path_i_num=pathit->second;
+			uint8_t temp_pid=delay_path_it->pid;
+			auto path_it=pathpacket.find(temp_pid);
+			uint32_t path_i_num=path_it->second;
 			for(j=0;j<path_i_num;j++){
 				sender_->PacketSchedule(it->first,temp_pid);
 				it++;
@@ -75,7 +84,6 @@ void ScaleSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t
 			NS_LOG_ERROR("fatal error");
 		}
 	}
-	delete path_array;
 }
 void ScaleSchedule::RoundRobin(std::map<uint32_t,uint32_t>&packets){
 	uint8_t total=pids_.size();
