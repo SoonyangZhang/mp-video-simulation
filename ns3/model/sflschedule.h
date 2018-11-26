@@ -15,6 +15,7 @@ typedef struct{
 	uint32_t bps;
 	int32_t byte;
 }path_water_t;
+bool Water_Comparator(const path_water_t&a,const path_water_t&b);
 class SFLSchedule :public Schedule{
 public:
 	SFLSchedule(){}

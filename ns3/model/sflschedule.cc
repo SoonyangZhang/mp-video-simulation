@@ -21,22 +21,34 @@ void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t s
 		water.owd=path->rtt_/2;
 		water.bps=path->GetIntantRate();
 		water.byte=0;
-		if(water.bps>0){
+        if(water.bps==0)
+        {
+            NS_LOG_WARN("rate0");
+        }
+		if(water.bps>0){ 
 			delay_water_table.push_back(water);
 		}
 	}
 	std::sort(delay_water_table.begin(),delay_water_table.end(),Water_Comparator);
+    uint32_t L=0;
     uint32_t step=0;
     {
         auto it=packets.begin();
-        uint32_t len=it->second;
+        uint32_t L=it->second;
         auto water_it=delay_water_table.rbegin();
         uint32_t bps=water_it->bps;
-        double ms=(double)len*8*1000/bps+0.5;
+        double ms=(double)L*8*1000/bps;
         step=(uint32_t)ms;
+        NS_LOG_INFO(std::to_string(L)<<" "<<std::to_string(bps)<<" "<<std::to_string(step));
         //when the water is not enough, the slowest path incrase at step at least one packet;
     }
 	AllocateWater(delay_water_table,size,step);
+    {
+        for(auto it=delay_water_table.begin();it!=delay_water_table.end();it++){
+            NS_LOG_INFO(std::to_string(it->pid)<<" "<<std::to_string(it->byte)<<" "<<std::to_string(size)<<" "<<std::to_string(it->bps));
+        }
+    }
+    
 	for(auto it=packets.begin();it!=packets.end();it++){
 		while(!delay_water_table.empty()){
 			auto water_it=delay_water_table.begin();
@@ -49,11 +61,11 @@ void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t s
 				if(last>0/*&&last>=it->second*/){
                     sender_->PacketSchedule(it->first,pid);
                     int remain=last-it->second;
-                    if(remain>0)
+                    if(remain>=L)
                     {
                         water_it->byte=remain;
                     }else{
-                        water_it->byte=0;
+                        delay_water_table.erase(water_it);
                     }
 					break;
 				}else{
@@ -87,6 +99,7 @@ void SFLSchedule::AllocateWater(std::vector<path_water_t> &watertable,uint32_t f
 			break;
 		}
 	}
+    return ;
 }
 uint32_t SFLSchedule::GetTotalWater(std::vector<path_water_t> &watertable,uint32_t compensate){
 	uint32_t water=0;
