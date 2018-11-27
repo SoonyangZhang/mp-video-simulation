@@ -50,6 +50,9 @@ PathSender::~PathSender(){
 	if(send_bucket_){
 		delete send_bucket_;
 	}
+	if(controller_){
+		delete controller_;
+	}
 	delete pm_;
 }
 void PathSender::SetClock(webrtc::Clock *clock){
@@ -190,7 +193,10 @@ int  PathSender::SendPadding(uint16_t payload_len,uint32_t ts){
 #define MAX_PAD_SIZE 500
 size_t PathSender::TimeToSendPadding(size_t bytes,
 	                                 const webrtc::PacedPacketInfo& cluster_info){
-
+	if(pace_mode_==PaceMode::no_congestion){
+		NS_LOG_ERROR("no paddding in no_congestion mode");
+		return bytes;
+	}
 	uint32_t now=Simulator::Now().GetMilliSeconds();
 	int remain=bytes;
 	if(bytes<100){
@@ -214,6 +220,26 @@ size_t PathSender::TimeToSendPadding(size_t bytes,
 	}
 	NS_LOG_INFO(std::to_string(pid)<<" padding "<<std::to_string(bytes));
 	return bytes;
+}
+void PathSender::SetOracleRate(uint32_t bps){
+	rate_=bps;
+	s_rate_=bps;
+	pace_mode_=PaceMode::no_congestion;
+}
+void PathSender::ConfigureOracleCongestion(){
+	if(controller_){
+		return;
+	}
+	controller_=new CongestionController(NULL,ROLE::ROLE_SENDER);
+	send_bucket_=new webrtc::PacedSender(&m_clock, this, nullptr);
+
+	if(mpsender_){
+		mpsender_->OnNetworkChanged(pid,rate_,0,rtt_);
+	}
+	send_bucket_->SetEstimatedBitrate(rate_);
+    send_bucket_->SetProbingEnabled(false);
+    pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
+    pm_->Start();
 }
 void PathSender::ConfigureCongestion(){
 	if(controller_){
@@ -287,7 +313,12 @@ bool PathSender::put(sim_segment_t*seg){
 	webrtc::SendSideCongestionController * cc=NULL;
 	cc=controller_->s_cc_;
 	uint32_t uid=mpsender_->GetUid();
-	if(cc){
+	if(pace_mode_==PaceMode::with_congestion){
+		if(cc){
+			send_bucket_->InsertPacket(webrtc::PacedSender::kNormalPriority,uid,
+					id,now,seg->data_size + SIM_SEGMENT_HEADER_SIZE,false);
+		}
+	}else{
 		send_bucket_->InsertPacket(webrtc::PacedSender::kNormalPriority,uid,
 				id,now,seg->data_size + SIM_SEGMENT_HEADER_SIZE,false);
 	}
@@ -501,7 +532,9 @@ void PathSender::Stop(){
     webrtc::SendSideCongestionController *cc=NULL;
 	cc=controller_->s_cc_;
 	pm_->DeRegisterModule(send_bucket_);
-	pm_->DeRegisterModule(cc);
+	if(cc){
+		pm_->DeRegisterModule(cc);
+	}
 	pm_->Stop();
 	FreePendingBuf();
 	FreeSentBuf();
@@ -677,7 +710,6 @@ void PathSender::RecvPacket(Ptr<Socket> socket){
         webrtc::SendSideCongestionController *cc=NULL;
         cc=controller_->s_cc_;
 	if(cc){
-        //printf("feedback\n");
 		cc->OnTransportFeedback(*fb.get());
 	}        
     }
@@ -708,9 +740,13 @@ void PathSender::ProcessingMsg(bin_stream_t *stream){
         rtt_update_ts_=now;
 		if(mpsender_&&(state!=path_conned)){
              NS_LOG_INFO("CON ACK");
-			mpsender_->NotifyPathUsable(pid);
-			ConfigureCongestion();
+			if(pace_mode_==PaceMode::with_congestion){
+				ConfigureCongestion();
+			}else{
+				ConfigureOracleCongestion();
+			}
             CheckPing();
+            mpsender_->NotifyPathUsable(pid);
 		}
         state=path_conned;
 		//TODO start ping timer;

@@ -58,17 +58,19 @@ int main(){
     rtc::LogMessage::SetLogToStderr(true);
     LogComponentEnable("ptr-test",LOG_LEVEL_ALL);
     //LogComponentEnable("MultipathSender",LOG_LEVEL_ALL);
-    LogComponentEnable("PathSender",LOG_LEVEL_ALL);
+    //LogComponentEnable("PathSender",LOG_LEVEL_ALL);
     //LogComponentEnable("PathReceiver",LOG_LEVEL_ALL);
     //LogComponentEnable("FakeVideoGenerator",LOG_LEVEL_ALL);
     //LogComponentEnable("ScaleSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("WrrSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
+    //LogComponentEnable("WaterFillingSchedule",LOG_LEVEL_ALL);
+    LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
     SetClockForWebrtc();//that's a must
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
-    std::string schedule_prefix=std::string("bc");
+    std::string schedule_prefix=std::string("water");
     std::string gapname=schedule_prefix;
     TraceReceive trace;
     trace.OpenTraceGapFile(gapname);
@@ -81,14 +83,18 @@ int main(){
     nodes.Get(1)->AddApplication (rpath1);
     spath1->Bind(1234);
     rpath1->Bind(4321);
+    spath1->SetOracleRate(2000000*4/5);//80% bw utility
+    rpath1->SetOracleMode();
 	Ptr<PathSender> spath2=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath2=CreateObject<PathReceiver>();
-    NodeContainer nodes2=BuildExampleTopo(1000000,150,200);
+    NodeContainer nodes2=BuildExampleTopo(1000000,150,200); //150 ms
     nodes2.Get(0)->AddApplication (spath2);
     nodes2.Get(1)->AddApplication (rpath2);
     spath2->Bind(1234);
     rpath2->Bind(4321);
 
+    spath2->SetOracleRate(1000000*4/5);//80% bw utility
+    rpath2->SetOracleMode();
     int record_id=1;
 
     std::string delay_name=schedule_prefix+std::to_string(record_id);

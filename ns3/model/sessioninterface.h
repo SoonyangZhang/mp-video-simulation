@@ -16,7 +16,8 @@ public:
 		role_=role;
 		if(role_==ROLE_SENDER){
 			s_cc_=(webrtc::SendSideCongestionController*)congestion;
-		}else{
+		}
+		if(role_==ROLE_RECEIVER){
 			r_cc_=(webrtc::ReceiveSideCongestionController*)congestion;
 		}
 	}

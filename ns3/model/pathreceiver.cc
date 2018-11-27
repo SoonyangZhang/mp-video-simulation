@@ -25,6 +25,9 @@ PathReceiver::PathReceiver()
 }
 PathReceiver::~PathReceiver(){
 	bin_stream_destroy(&strm_);
+	if(pm_){
+		delete pm_;
+	}
 }
 void PathReceiver::HeartBeat(uint32_t now){
 }
@@ -169,7 +172,11 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		return;
 	}
 	if(first_packet_){
-		ConfigureCongestion();
+		if(pace_mode_==PaceMode::with_congestion){
+			ConfigureCongestion();
+		}else{
+			ConfigureOracleCongestion();
+		}
 		CheckPing();
 		first_packet_=false;
 	}
@@ -186,7 +193,9 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		fakeHeader.extension.transportSequenceNumber=seg->transport_seq;
 		webrtc::ReceiveSideCongestionController *cc=NULL;
 		cc=controller_->r_cc_;
-		cc->OnReceivedPacket(now,overhead,fakeHeader);
+		if(cc){
+			cc->OnReceivedPacket(now,overhead,fakeHeader);
+		}
 	}
 	uint32_t seq=seg->packet_id;
     if(CheckRecvTableExist(seq))
@@ -210,7 +219,7 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
         if(sender_){
             firstTs=sender_->GetFirstTs();
         }
-		uint32_t temp=seg->send_ts+seg->timestamp+firstTs;
+		uint32_t temp=/*seg->send_ts+*/seg->timestamp+firstTs;
 		uint32_t owd=now-temp;
 		delay_cb_(seg->packet_id,owd);
 	}
@@ -296,9 +305,20 @@ void PathReceiver::Stop(){
 	webrtc::ReceiveSideCongestionController *cc=NULL;
 	if(controller_){
 		cc=controller_->r_cc_;
-		pm_->DeRegisterModule(cc);
+		if(cc){
+			pm_->DeRegisterModule(cc);
+		}
 	}
-	pm_->Stop();
+	if(pace_mode_==PaceMode::with_congestion){
+		pm_->Stop();
+	}
+}
+void PathReceiver::ConfigureOracleCongestion(){
+	if(controller_){
+		return;
+	}
+	pm_=new ProcessModule();
+	controller_=new CongestionController(NULL,ROLE::ROLE_RECEIVER);
 }
 void PathReceiver::ConfigureCongestion(){
 	if(controller_){
@@ -527,7 +547,9 @@ void PathReceiver::ProcessingMsg(bin_stream_t *stream,Address &addr){
 			fakeHeader.extension.transportSequenceNumber=body.transport_seq;
 			webrtc::ReceiveSideCongestionController *cc=NULL;
 			cc=controller_->r_cc_;
-			cc->OnReceivedPacket(now,overhead,fakeHeader);
+			if(cc){
+				cc->OnReceivedPacket(now,overhead,fakeHeader);
+			}
 		}
 
 		break;

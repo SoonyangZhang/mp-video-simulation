@@ -49,6 +49,8 @@ public:
 	                      uint8_t fraction_loss,  // 0 - 255.
 	                      int64_t rtt_ms,
 	                      int64_t probing_interval_ms) override;
+	void SetOracleRate(uint32_t bps);
+	void ConfigureOracleCongestion();
 	void ConfigureCongestion();
 	uint32_t GetFirstTs();
 	bool put(sim_segment_t*seg);
@@ -117,6 +119,7 @@ public:
 	uint32_t s_rate_;
 	uint32_t base_seq_;
 	uint32_t s_sent_ts_;
+	int8_t pace_mode_{PaceMode::with_congestion};
 private:
 	CongestionController* controller_;
 	SenderInterface *mpsender_;

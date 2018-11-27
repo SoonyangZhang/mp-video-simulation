@@ -69,12 +69,16 @@ public:
 	void SetSourceEnd(Ptr<PathSender>sender){sender_=sender;}
 	typedef Callback<void,uint32_t,uint32_t> LatencyCallback;
 	void SetPacketDelayTrace(LatencyCallback cb){delay_cb_=cb;}
+	void SetOracleMode(){
+		pace_mode_=PaceMode::no_congestion;
+	}
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
 	void RecvPacket(Ptr<Socket> socket);
 	void ProcessingMsg(bin_stream_t *stream,Address &Addr);
 private:
+	void ConfigureOracleCongestion();
 	void ConfigureCongestion();
 	bool LossTableSeqExist(uint32_t seq);
 	void LossTableRemove(uint32_t seq);
@@ -118,6 +122,7 @@ private:
     EventId pingTimer_;
     Ptr<PathSender> sender_;
     LatencyCallback delay_cb_;
+    int8_t pace_mode_{PaceMode::with_congestion};
 };
 }
 
