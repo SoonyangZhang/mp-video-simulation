@@ -22,6 +22,8 @@ struct video_frame_t{
 	int64_t waitting_ts;//waitting for lost packet
 	//the max time to deliver packet
 	int frame_type;
+	int64_t frame_first_ts;
+	uint32_t frame_timestamp;
 	video_packet_t **packets;
 };
 class MultipathReceiver :public ReceiverInterface{
@@ -40,8 +42,12 @@ public:
     void SetGapCallback(GapCallback cb){m_gapCb=cb;}
     typedef Callback<void,uint32_t> RecvBufCallback;
     void SetRecvBufLenTrace(RecvBufCallback cb){m_recv_len_cb_=cb;}
+                           //fid   len  recv total
+    typedef Callback<void,TraceFrameInfo> FrameTraceCallback;
+    void SetFrameInfoTrace(FrameTraceCallback cb){m_frame_info_cb_=cb;}
 private:
 	Ptr<PathReceiver> GetPathInfo(uint8_t);
+	int64_t GetFrameSentFirstTs(uint8_t pid);
 	bool DeliverFrame(video_frame_t *f);
 	void PacketConsumed(video_frame_t *f);
 	void BuffCollection(video_frame_t*f);
@@ -68,6 +74,7 @@ private:
 	EventId hbTimer_;
     GapCallback m_gapCb;
     RecvBufCallback m_recv_len_cb_;
+    FrameTraceCallback m_frame_info_cb_;
     uint32_t recv_buf_len_{0};
 };
 }

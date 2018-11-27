@@ -56,8 +56,15 @@ Ptr<PathReceiver> MultipathReceiver::GetPathInfo(uint8_t pid){
         path=(*it);
         }
     }
-
 	return path;
+}
+int64_t MultipathReceiver::GetFrameSentFirstTs(uint8_t pid){
+	int64_t ts=-1;
+	Ptr<PathReceiver> path=GetPathInfo(pid);
+	if(path!=NULL){
+		ts=path->GetFirstTs();
+	}
+	return ts;
 }
 void MultipathReceiver::StopCallback(){
         Stop();
@@ -82,7 +89,7 @@ bool MultipathReceiver::DeliverFrame(video_frame_t *f){
 		}
 		uint8_t *buf=new uint8_t[buf_size];
 		uint32_t len=0;
-		uint8_t offset=0;
+		uint32_t offset=0;
 		uint8_t *data;
 		for(i=0;i<f->total;i++){
 			packet=f->packets[i];
@@ -93,6 +100,18 @@ bool MultipathReceiver::DeliverFrame(video_frame_t *f){
 				memcpy(buf+offset,data,len);
 				offset+=len;
 			}
+		}
+		if(!m_frame_info_cb_.IsNull()){
+			uint32_t now=Simulator::Now().GetMilliSeconds();
+			TraceFrameInfo info;
+			info.fid=fid;
+			info.len=offset;
+			info.recv=f->recv;
+			info.total=f->total;
+			uint32_t delay=0;
+			delay=now-(f->frame_first_ts+f->frame_timestamp);
+			info.delay=delay;
+			m_frame_info_cb_(info);
 		}
 		deliver_->ForwardUp(fid,buf,offset,f->recv,f->total);
 		delete [] buf;
@@ -279,6 +298,10 @@ void MultipathReceiver::DeliverToCache(uint8_t pid,sim_segment_t* d){
 	uint32_t now=rtc::TimeMillis();
     if(frame->first_ts==0){
         frame->first_ts=now;
+        if(!m_frame_info_cb_.IsNull()){
+        	frame->frame_first_ts=GetFrameSentFirstTs(pid);
+        	frame->frame_timestamp=d->timestamp;
+        }
     }
 	packet->pid=pid;
 	//packet->ts=now;

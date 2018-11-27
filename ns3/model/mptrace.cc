@@ -32,6 +32,7 @@ void TraceReceive::RecvGap(uint32_t fid,uint32_t duration){
 void TraceReceive::Close(){
 	CloseTraceGapFile();
 	CloseTraceRecvBufFile();
+	CloseTraceFrameInfoFile();
 }
 void TraceReceive::OpenTraceRecvBufFile(std::string filename){
 	char buf[FILENAME_MAX];
@@ -53,6 +54,27 @@ void TraceReceive::RecvBufLen(uint32_t len){
 		sprintf (line, "%f %16d",
 				now,len);
 		m_bufLen<<line<<std::endl;
+	}
+}
+void TraceReceive::OpenTraceFrameInfoFile(std::string filename){
+	char buf[FILENAME_MAX];
+	memset(buf,0,FILENAME_MAX);
+	std::string framepath = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
+			+ filename+"_frameinfo.txt";
+	m_frameInfo.open(framepath.c_str(), std::fstream::out);
+}
+void TraceReceive::CloseTraceFrameInfoFile(){
+	if(m_frameInfo.is_open()){
+		m_frameInfo.close();
+	}
+}
+void TraceReceive::RecvFrameInfo(TraceFrameInfo info){
+	char line [256];
+	memset(line,0,256);
+	if(m_frameGap.is_open()){
+		sprintf (line, "%d %16d %16d %16d %16d",
+				info.fid,info.len,info.recv,info.total,info.delay);
+		m_frameInfo<<line<<std::endl;
 	}
 }
 TraceDelayInfo::~TraceDelayInfo(){

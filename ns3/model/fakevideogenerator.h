@@ -45,8 +45,8 @@ private:
     //WrrSchedule schedule_{CostType::c_intant};
     //BalanceCostSchedule schedule_{CostType::c_intant};
     //EDCLDSchedule schedule_{0.2};
-    //SFLSchedule schedule_;
-    WaterFillingSchedule schedule_;
+    SFLSchedule schedule_;
+    //WaterFillingSchedule schedule_;
 	EventId m_timer;
 	RateCallback m_rate_cb_;
 };

@@ -65,19 +65,21 @@ int main(){
     //LogComponentEnable("WrrSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
     //LogComponentEnable("WaterFillingSchedule",LOG_LEVEL_ALL);
-    LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
+   // LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
     SetClockForWebrtc();//that's a must
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
-    std::string schedule_prefix=std::string("water");
+    std::string schedule_prefix=std::string("sfl");
     std::string gapname=schedule_prefix;
     TraceReceive trace;
     trace.OpenTraceGapFile(gapname);
     trace.OpenTraceRecvBufFile(gapname);
+    trace.OpenTraceFrameInfoFile(gapname);
     MultipathReceiver receiver(12);
     receiver.SetGapCallback(MakeCallback(&TraceReceive::RecvGap,&trace));
     receiver.SetRecvBufLenTrace(MakeCallback(&TraceReceive::RecvBufLen,&trace));
+    receiver.SetFrameInfoTrace(MakeCallback(&TraceReceive::RecvFrameInfo,&trace));
     NodeContainer nodes=BuildExampleTopo(2000000,100,200);
     nodes.Get(0)->AddApplication (spath1);
     nodes.Get(1)->AddApplication (rpath1);

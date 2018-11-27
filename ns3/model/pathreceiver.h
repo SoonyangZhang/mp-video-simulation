@@ -67,6 +67,13 @@ public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
 	void SetSourceEnd(Ptr<PathSender>sender){sender_=sender;}
+	int64_t GetFirstTs(){
+		int64_t ts=-1;
+		if(sender_!=NULL){
+			ts=sender_->GetFirstTs();
+		}
+		return ts;
+	}
 	typedef Callback<void,uint32_t,uint32_t> LatencyCallback;
 	void SetPacketDelayTrace(LatencyCallback cb){delay_cb_=cb;}
 	void SetOracleMode(){

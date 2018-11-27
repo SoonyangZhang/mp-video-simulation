@@ -36,6 +36,13 @@ enum NOTIFYMESSAGE{
     notify_dis,
 	notify_dis_ack,
 };
+struct TraceFrameInfo{
+	uint32_t fid;
+	uint32_t len;
+	uint32_t recv;
+	uint32_t total;
+	uint32_t delay;
+};
 //to consume frame
 class NetworkDataConsumer{
 public:

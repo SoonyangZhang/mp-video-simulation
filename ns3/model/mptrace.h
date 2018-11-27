@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include "mpcommon.h"
 namespace ns3{
 class TraceReceive{
 public:
@@ -12,12 +13,16 @@ public:
 	void CloseTraceGapFile();
 	void OpenTraceRecvBufFile(std::string filename);
 	void CloseTraceRecvBufFile();
+	void OpenTraceFrameInfoFile(std::string filename);
+	void CloseTraceFrameInfoFile();
 	void RecvGap(uint32_t fid,uint32_t duration);
 	void RecvBufLen(uint32_t len);
+	void RecvFrameInfo(TraceFrameInfo info);
 private:
 	void Close();
 	std::fstream m_frameGap;
 	std::fstream m_bufLen;
+	std::fstream m_frameInfo;
 };
 class TraceDelayInfo{
 public:
