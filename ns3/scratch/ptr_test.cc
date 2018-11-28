@@ -54,7 +54,7 @@ uint64_t stopTime=200;
 #define MIN_SEND_BITRATE (20 * 8 * 1000)
 #include "rtc_base/logging.h"
 
-int main(){
+int main(int argc, char *argv[]){
     rtc::LogMessage::SetLogToStderr(true);
     LogComponentEnable("ptr-test",LOG_LEVEL_ALL);
     //LogComponentEnable("MultipathSender",LOG_LEVEL_ALL);
@@ -66,11 +66,16 @@ int main(){
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
     //LogComponentEnable("WaterFillingSchedule",LOG_LEVEL_ALL);
    // LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
+    std::string scheduleType;
+    CommandLine cmd;
+    cmd.AddValue ("st", "schedule type", scheduleType);
+    cmd.Parse (argc, argv);
+    //NS_LOG_INFO(scheduleType);
     SetClockForWebrtc();//that's a must
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
-    std::string schedule_prefix=std::string("sfl");
+    std::string schedule_prefix=scheduleType;
     std::string gapname=schedule_prefix;
     TraceReceive trace;
     trace.OpenTraceGapFile(gapname);
@@ -124,9 +129,11 @@ int main(){
     sender.RegisterPath(spath2);
     receiver.RegisterPath(rpath2);
 
-    FakeVideoGenerator source(MIN_SEND_BITRATE,30);
-    source.RegisterSender(&sender);
     std::string ratename=schedule_prefix;
+    FakeVideoGenerator source(MIN_SEND_BITRATE,30);
+    source.ConfigureSchedule(schedule_prefix);
+    source.RegisterSender(&sender);
+    
     trace_d_p1.OpenTraceRateFile(ratename);
     source.SetRateTraceCallback(MakeCallback(&TraceDelayInfo::RecvRate,&trace_d_p1));
 

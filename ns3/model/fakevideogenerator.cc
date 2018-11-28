@@ -18,6 +18,11 @@ FakeVideoGenerator::FakeVideoGenerator(uint32_t minbitrate,uint32_t fs)
 	delta_=1000/fs_;
 	ratecontrol_.RegisterRateChangeCallback(this);
 }
+FakeVideoGenerator::~FakeVideoGenerator(){
+    if(schedule_){
+        delete schedule_;
+    }
+}
 void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	if(bitrate<min_bitrate_){
 		rate_=min_bitrate_;
@@ -35,11 +40,27 @@ void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	//uint32_t elapse=now-first_ts_;
 	//NS_LOG_INFO("t "<<elapse<<" r "<<rate_);
 }
+void FakeVideoGenerator::ConfigureSchedule(std::string type){
+    if(type==std::string("scale")){
+        schedule_=new ScaleSchedule(CostType::c_intant);
+    }else if(type==std::string("wrr")){
+        schedule_=new WrrSchedule(CostType::c_intant);
+    }else if(type==std::string("edcld")){
+        schedule_=new EDCLDSchedule(0.2);
+    }else if(type==std::string("bc")){
+         schedule_=new BalanceCostSchedule(CostType::c_intant);
+    }else if(type==std::string("sfl")){
+         schedule_=new SFLSchedule();
+    }else if(type==std::string("water")){
+        schedule_=new WaterFillingSchedule();
+    }
+}
 void FakeVideoGenerator::RegisterSender(SenderInterface *s){
 	sender_=s;
 	sender_->RegisterPacketSource(this);
 	sender_->SetRateControl(&ratecontrol_);
-	sender_->SetSchedule(&schedule_);
+    NS_ASSERT(schedule_!=NULL);
+	sender_->SetSchedule(schedule_);
 }
 void FakeVideoGenerator::SendFrame(){
 	if(!running_){
