@@ -14,6 +14,8 @@
 #include "ns3/event-id.h"
 #include "ns3/callback.h"
 #include <string>
+#include <memory>
+#include "ns3/syncodecs.h"
 namespace ns3{
 //rate_  in bps;
 class FakeVideoGenerator :public RateChangeCallback
@@ -23,7 +25,7 @@ public:
 	~FakeVideoGenerator();
 	void ChangeRate(uint32_t bitrate) override;
 	void RegisterSender(SenderInterface *s);
-	void SendFrame();
+	void SendFrame(uint32_t frame_len);
 	void Generate();
 	void Start() override;
 	void Stop() override;
@@ -53,6 +55,7 @@ private:
     Schedule *schedule_{NULL};
 	EventId m_timer;
 	RateCallback m_rate_cb_;
+	std::shared_ptr<syncodecs::Codec> m_codec;
 };
 }
 

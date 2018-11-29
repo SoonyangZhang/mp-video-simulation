@@ -10,7 +10,7 @@ void MinQueueSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint3
 	uint32_t totalrate=0;
 	uint32_t packet_num=packets.size();
 	std::map<uint8_t,uint32_t> pathrate;
-	if(pids_.size()==1){
+	if(pids_.size()==1||packet_num==1){
 		RoundRobin(packets);
 		return;
 	}

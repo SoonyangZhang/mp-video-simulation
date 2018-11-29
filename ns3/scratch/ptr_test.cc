@@ -66,18 +66,23 @@ int main(int argc, char *argv[]){
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
     //LogComponentEnable("WaterFillingSchedule",LOG_LEVEL_ALL);
    // LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
-    LogComponentEnable("EDCLDSchedule",LOG_LEVEL_ALL);
-    std::string scheduleType;
+    //LogComponentEnable("EDCLDSchedule",LOG_LEVEL_ALL);
+    //LogComponentEnable("FakeVideoGenerator",LOG_LEVEL_ALL);
+    std::string scheduleType;//=std::string("scale");
+    std::string test_case=std::string("2");
+    std::string mode=std::string("oracle");
     CommandLine cmd;
     cmd.AddValue ("st", "schedule type", scheduleType);
+    cmd.AddValue ("cs", "test_case", test_case);
+    cmd.AddValue ("md", "mode", mode);
     cmd.Parse (argc, argv);
-    //NS_LOG_INFO(scheduleType);
+    NS_LOG_INFO("case "<<test_case);
     SetClockForWebrtc();//that's a must
 	Ptr<PathSender> spath1=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath1=CreateObject<PathReceiver>();
 	MultipathSender sender(11);
     std::string schedule_prefix=scheduleType;
-    std::string gapname=schedule_prefix;
+    std::string gapname=schedule_prefix+std::string("_")+test_case;
     TraceReceive trace;
     trace.OpenTraceGapFile(gapname);
     trace.OpenTraceRecvBufFile(gapname);
@@ -86,9 +91,59 @@ int main(int argc, char *argv[]){
     receiver.SetGapCallback(MakeCallback(&TraceReceive::RecvGap,&trace));
     receiver.SetRecvBufLenTrace(MakeCallback(&TraceReceive::RecvBufLen,&trace));
     receiver.SetFrameInfoTrace(MakeCallback(&TraceReceive::RecvFrameInfo,&trace));
+    NodeContainer nodes;
+    NodeContainer nodes2;
+    uint64_t bw1=0;
+    uint64_t bw2=0;
+    if(test_case==std::string("1")){
+        bw1=2000000;
+        bw2=1000000;
+        nodes=BuildExampleTopo(bw1,100,200);
+        nodes2=BuildExampleTopo(bw2,150,200);    
+    }else if(test_case==std::string("2")){
+    	bw1=2000000;
+    	bw2=1000000;
+    	nodes=BuildExampleTopo(bw1,100,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("3")){
+    	bw1=3000000;
+    	bw2=1000000;
+    	nodes=BuildExampleTopo(bw1,150,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("4")){
+    	bw1=2000000;
+    	bw2=1000000;
+    	nodes=BuildExampleTopo(bw1,50,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("5")){
+    	bw1=1000000;
+    	bw2=1000000;
+    	nodes=BuildExampleTopo(bw1,50,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("6")){
+    	bw1=3000000;
+    	bw2=3000000;
+    	nodes=BuildExampleTopo(bw1,50,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("7")){
+    	bw1=2000000;
+    	bw2=3000000;
+    	nodes=BuildExampleTopo(bw1,30,200);
+    	nodes2=BuildExampleTopo(bw2,50,200);
+    }else if(test_case==std::string("8")){
+    	bw1=4000000;
+    	bw2=2000000;
+    	nodes=BuildExampleTopo(bw1,30,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("9")){
+    	bw1=2000000;
+    	bw2=2000000;
+    	nodes=BuildExampleTopo(bw1,30,200);
+    	nodes2=BuildExampleTopo(bw2,100,200);
+    }
     //NodeContainer nodes=BuildExampleTopo(2000000,100,200); //oracle 1
     //NodeContainer nodes=BuildExampleTopo(2000000,100,200);// oracle 2
-    NodeContainer nodes=BuildExampleTopo(3000000,150,200);// oracle 3
+    //NodeContainer nodes=BuildExampleTopo(3000000,150,200);// oracle 3
     //NodeContainer nodes=BuildExampleTopo(2000000,50,200);// oracle 4
     //NodeContainer nodes=BuildExampleTopo(1000000,50,200);// oracle 5
     //NodeContainer nodes=BuildExampleTopo(3000000,50,200);// oracle 6
@@ -99,29 +154,32 @@ int main(int argc, char *argv[]){
     nodes.Get(1)->AddApplication (rpath1);
     spath1->Bind(1234);
     rpath1->Bind(4321);
-    spath1->SetOracleRate(3000000*4/5);//80% bw utility
-    rpath1->SetOracleMode();
+
 	Ptr<PathSender> spath2=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath2=CreateObject<PathReceiver>();
+    nodes2.Get(0)->AddApplication (spath2);
+    nodes2.Get(1)->AddApplication (rpath2);
+    spath2->Bind(1234);
+    rpath2->Bind(4321);
+    if(mode==std::string("oracle")){
+    spath1->SetOracleRate(bw1*4/5);//80% bw utility
+    rpath1->SetOracleMode(); 
+
+    spath2->SetOracleRate(bw2*4/5);//80% bw utility
+    rpath2->SetOracleMode();   
+    }
     //NodeContainer nodes2=BuildExampleTopo(1000000,150,200); // 1
     //NodeContainer nodes2=BuildExampleTopo(1000000,100,200); //2 
-    NodeContainer nodes2=BuildExampleTopo(1000000,100,200); // 3
+    //NodeContainer nodes2=BuildExampleTopo(1000000,100,200); // 3
     //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);// 4
     //NodeContainer nodes2=BuildExampleTopo(1000000,100,200);// 5
     //NodeContainer nodes2=BuildExampleTopo(3000000,100,200); //6
     //NodeContainer nodes2=BuildExampleTopo(3000000,50,200);//7
     //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//8
     //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//9
-    nodes2.Get(0)->AddApplication (spath2);
-    nodes2.Get(1)->AddApplication (rpath2);
-    spath2->Bind(1234);
-    rpath2->Bind(4321);
-
-    spath2->SetOracleRate(1000000*4/5);//80% bw utility
-    rpath2->SetOracleMode();
     int record_id=1;
 
-    std::string delay_name=schedule_prefix+std::to_string(record_id);
+    std::string delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
     record_id++;
     TraceDelayInfo trace_d_p1;
     trace_d_p1.OpenTracePendingDelayFile(delay_name);
@@ -130,7 +188,7 @@ int main(int argc, char *argv[]){
     spath1->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p1));
     rpath1->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p1));
     rpath1->SetSourceEnd(spath1);
-    delay_name=schedule_prefix+std::to_string(record_id);
+    delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
     record_id++;
     TraceDelayInfo trace_d_p2;
     trace_d_p2.OpenTracePendingDelayFile(delay_name);
@@ -146,7 +204,7 @@ int main(int argc, char *argv[]){
     sender.RegisterPath(spath2);
     receiver.RegisterPath(rpath2);
 
-    std::string ratename=schedule_prefix;
+    std::string ratename=schedule_prefix+std::string("_")+test_case;
     FakeVideoGenerator source(MIN_SEND_BITRATE,30);
     source.ConfigureSchedule(schedule_prefix);
     source.RegisterSender(&sender);
@@ -156,7 +214,7 @@ int main(int argc, char *argv[]){
 
     FakeVideoConsumer sink;
     receiver.RegisterDataSink(&sink);
-    std::string sinkname=schedule_prefix;
+    std::string sinkname=ratename;
     sink.SetTraceName(sinkname);
     std::vector<InetSocketAddress> addr;
     addr.push_back(spath1->GetLocalAddress());

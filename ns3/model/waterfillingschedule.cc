@@ -4,7 +4,8 @@
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("WaterFillingSchedule");
 void WaterFillingSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
-	if(pids_.size()==1){
+    uint32_t packet_num=packets.size();
+	if(pids_.size()==1||packet_num==1){
 		RoundRobin(packets);
 		return;
 	}

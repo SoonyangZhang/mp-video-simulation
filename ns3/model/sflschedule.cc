@@ -8,7 +8,8 @@ bool Water_Comparator(const path_water_t&a,const path_water_t&b){
 	return a.owd<b.owd;
 }
 void SFLSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
-	if(pids_.size()==1){
+    uint32_t packet_num=packets.size();
+	if(pids_.size()==1||packet_num==1){
 		RoundRobin(packets);
 		return;
 	}

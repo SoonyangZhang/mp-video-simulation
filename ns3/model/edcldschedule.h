@@ -46,6 +46,8 @@ private:
 	std::map<uint8_t,double> psi_table_;
 	uint32_t average_packet_len_;
 	uint64_t packet_counter_;
+    double smooth_rate_{0};
+    double coeff_{0.85};
 };
 }
 #endif /* NS3_MPVIDEO_EDCLDSCHEDULE_H_ */

@@ -12,7 +12,7 @@ AggregateRate::AggregateRate()
 	char buf[FILENAME_MAX];
 	memset(buf,0,FILENAME_MAX);
     string ratepath = string (getcwd(buf, FILENAME_MAX)) + "/traces/" + "mpvideo"+"_rate.txt";
-	m_traceRateFile.open(ratepath.c_str(), std::fstream::out);
+	//m_traceRateFile.open(ratepath.c_str(), std::fstream::out);
 }
 AggregateRate::~AggregateRate(){
 	if(m_traceRateFile.is_open())
@@ -40,6 +40,7 @@ void AggregateRate::ChangeRate(uint8_t pid,uint32_t bitrate
 		cb_->ChangeRate(totalrate);
 	}
     NS_LOG_INFO(std::to_string(pid)<<" "<<delta<<" "<<bitrate/1000);
+    if(m_traceRateFile.is_open()){
 	char line [255];
 	memset(line,0,255);
 	sprintf (line, "%16d %16f %16f",
@@ -48,10 +49,8 @@ void AggregateRate::ChangeRate(uint8_t pid,uint32_t bitrate
 	memset(line,0,255);
 	sprintf (line, "%16d %16f %16f",
 			a_pid_,delta,(double)totalrate/1000);
-	m_traceRateFile<<line<<std::endl;
-    //NS_LOG_INFO(std::to_string(a_pid_)<<" "<<delta<<" "<<totalrate/1000);
-   // printf("%d %d %d\n",pid,delta,bitrate/1000);
-   // printf("%d %d %d\n",a_pid_,delta,totalrate/1000);
+	m_traceRateFile<<line<<std::endl;   
+} 
 }
 void AggregateRate::RegisterRateChangeCallback(RateChangeCallback*cb){
 	cb_=cb;

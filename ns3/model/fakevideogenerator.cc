@@ -17,6 +17,12 @@ FakeVideoGenerator::FakeVideoGenerator(uint32_t minbitrate,uint32_t fs)
 ,sender_(NULL){
 	delta_=1000/fs_;
 	ratecontrol_.RegisterRateChangeCallback(this);
+    double fps=fs_;
+    auto innerCodec = new syncodecs::StatisticsCodec{fps};
+    //auto codec = new syncodecs::ShapedPacketizer{innerCodec, 1000};
+	m_codec.reset(innerCodec);
+    double codec_rate=min_bitrate_;
+	m_codec->setTargetRate (codec_rate);
 }
 FakeVideoGenerator::~FakeVideoGenerator(){
     if(schedule_){
@@ -37,6 +43,8 @@ void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	if(!m_rate_cb_.IsNull()){
 		m_rate_cb_(bitrate);
 	}
+    double codec_rate=rate_;
+	m_codec->setTargetRate (codec_rate);
 	//uint32_t elapse=now-first_ts_;
 	//NS_LOG_INFO("t "<<elapse<<" r "<<rate_);
 }
@@ -66,19 +74,17 @@ void FakeVideoGenerator::RegisterSender(SenderInterface *s){
     NS_ASSERT(schedule_!=NULL);
 	sender_->SetSchedule(schedule_);
 }
-void FakeVideoGenerator::SendFrame(){
+void FakeVideoGenerator::SendFrame(uint32_t frame_len){
 	if(!running_){
 		return;
 	}
-	uint32_t now=Simulator::Now().GetMilliSeconds();
-	last_send_ts_=now;
 	uint32_t f_type=0;
 	uint32_t len=0;
 	if(frame_id_==0){
 		f_type=1;
 	}
 	frame_id_++;
-	len=delta_*rate_/(1000*8);
+	len=frame_len;
     uint32_t packet_size=len/1000;
     //printf("packet_size %d\t%d\n",frame_id_-1,packet_size);
 	if(sender_){
@@ -91,9 +97,16 @@ void FakeVideoGenerator::Generate()
 {
 	if(m_timer.IsExpired())
 	{
-		SendFrame();
-		Time next=MilliSeconds(delta_);
-		m_timer=Simulator::Schedule(next,&FakeVideoGenerator::Generate,this);
+	    syncodecs::Codec& codec = *m_codec;
+        double codec_rate=rate_;
+	    codec.setTargetRate (codec_rate);
+	    ++codec;
+	    const auto bytesToSend = codec->first.size ();
+        NS_LOG_INFO("rate "<<std::to_string(codec.getTargetRate())<<" "<<std::to_string(bytesToSend));
+		SendFrame(bytesToSend);
+		auto secsToNextFrame = codec->second;
+		Time Next{Seconds(secsToNextFrame)};
+		m_timer=Simulator::Schedule(Next,&FakeVideoGenerator::Generate,this);
 	}
 }
 void FakeVideoGenerator::Start(){

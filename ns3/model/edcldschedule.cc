@@ -16,14 +16,14 @@ EDCLDSchedule::EDCLDSchedule(float weight){
 void EDCLDSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size){
 	uint32_t n=packets.size();
     {
-        auto it=packets.begin();
-        average_packet_len_=it->second;
+       // auto it=packets.begin();
+       // average_packet_len_=it->second;
     }
-	//if(n>0&&size>0){
-		//average_packet_len_=(average_packet_len_*packet_counter_+size)/(packet_counter_+n);
-		//packet_counter_+=n;
-	//}
-	if(pids_.size()==1){
+	if(n>0&&size>0){
+		average_packet_len_=(average_packet_len_*packet_counter_+size)/(packet_counter_+n);
+		packet_counter_+=n;
+	}
+	if(pids_.size()==1||n==1){
 		RoundRobin(packets);
 		return;
 	}
@@ -119,7 +119,18 @@ void EDCLDSchedule::UpdateCostAndPsiTable(uint32_t now,uint32_t len){
 			uint32_t B=pathsender->GetIntantRate();
 			uint32_t q=pathsender->GetPendingLen();
 			// S  in bit
-			lambda=(double)len*8*1000/T;
+            double rate=0;
+            if(T==0){
+            
+            }else{
+            rate=(double)len*8*1000/T;
+            if(smooth_rate_==0){
+                smooth_rate_=rate;
+            }else{
+                smooth_rate_=(1-coeff_)*smooth_rate_+coeff_*rate;
+            }
+            }
+			lambda=smooth_rate_;
 			double S=(double)B-temp_psi*lambda;
 			S_table.insert(std::make_pair(temp_pid,S));
 			//q*8*1000/B  unit ms
@@ -169,9 +180,8 @@ void EDCLDSchedule::UpdateCostAndPsiTable(uint32_t now,uint32_t len){
 	double B_worst=0;
 	double Q_best=0;
 	double Q_worst=0;
-	double S_best=0; // 	Multiply T
+	double S_best=0;
 	double S_worst=0;
-	int v=0;
 	double delta_psi=0;
 /*     C_best(\psi+\Delta_{\psi})=C_worst(\psi-\Delta_{\psi})
  * 	   C unit ms
@@ -237,10 +247,13 @@ void EDCLDSchedule::UpdateCostAndPsiTable(uint32_t now,uint32_t len){
     double root=0;
     if(a==0){
         root=(-c)/b;
+        NS_LOG_INFO("b "<<std::to_string(b));
+        NS_LOG_INFO("= "<<std::to_string(root));
     }else{
         root=(-b+sqrt(Delta))/(2*a);
+        NS_LOG_INFO("!= "<<std::to_string(root)<<" "<<std::to_string(Delta)<<std::to_string(lambda));
     }
-	NS_LOG_INFO(std::to_string(root));
+	
 	if(root<0){
 		root=0;
 		NS_LOG_WARN("root le 0");
