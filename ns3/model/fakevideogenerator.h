@@ -5,6 +5,7 @@
 #include "scaleschedule.h"
 #include "wrrschedule.h"
 #include "balancecostschedule.h"
+#include "minqueueschedule.h"
 #include "edcldschedule.h"
 #include "sflschedule.h"
 #include "waterfillingschedule.h"

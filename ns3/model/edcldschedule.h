@@ -37,13 +37,13 @@ public:
 private:
 	void GetUsablePath(std::map<uint8_t,uint32_t>&usable_path,uint32_t &total_rate);
 	void RoundRobin(std::map<uint32_t,uint32_t>&packets);
-	void WeightRoundRobinSchedule(std::map<uint32_t,uint32_t>&packets,std::map<uint8_t,float>&lambda);
+	void WeightRoundRobinSchedule(std::map<uint32_t,uint32_t>&packets,std::map<uint8_t,double>&lambda);
 	void UpdateCostAndPsiTable(uint32_t now,uint32_t len);
 	void ResetCostAndPsiTable();
-	float w_;
+	double w_;
 	uint32_t last_ts_;
-	std::map<uint8_t,float> cost_table_;
-	std::map<uint8_t,float> psi_table_;
+	std::map<uint8_t,double> cost_table_;
+	std::map<uint8_t,double> psi_table_;
 	uint32_t average_packet_len_;
 	uint64_t packet_counter_;
 };

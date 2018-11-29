@@ -339,7 +339,9 @@ void MultipathReceiver::Process(){
 }
 void MultipathReceiver::Stop(){
 	Ptr<PathReceiver> path=NULL;
-	hbTimer_.Cancel();
+    if(!hbTimer_.IsExpired()){
+        hbTimer_.Cancel();
+    }
 	stop_=true;
 	for(auto it=paths_.begin();it!=paths_.end();it++){
 		path=(*it);

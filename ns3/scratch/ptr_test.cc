@@ -66,6 +66,7 @@ int main(int argc, char *argv[]){
     //LogComponentEnable("AggregateRate",LOG_LEVEL_ALL);
     //LogComponentEnable("WaterFillingSchedule",LOG_LEVEL_ALL);
    // LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
+    LogComponentEnable("EDCLDSchedule",LOG_LEVEL_ALL);
     std::string scheduleType;
     CommandLine cmd;
     cmd.AddValue ("st", "schedule type", scheduleType);
@@ -85,16 +86,32 @@ int main(int argc, char *argv[]){
     receiver.SetGapCallback(MakeCallback(&TraceReceive::RecvGap,&trace));
     receiver.SetRecvBufLenTrace(MakeCallback(&TraceReceive::RecvBufLen,&trace));
     receiver.SetFrameInfoTrace(MakeCallback(&TraceReceive::RecvFrameInfo,&trace));
-    NodeContainer nodes=BuildExampleTopo(2000000,100,200);
+    //NodeContainer nodes=BuildExampleTopo(2000000,100,200); //oracle 1
+    //NodeContainer nodes=BuildExampleTopo(2000000,100,200);// oracle 2
+    NodeContainer nodes=BuildExampleTopo(3000000,150,200);// oracle 3
+    //NodeContainer nodes=BuildExampleTopo(2000000,50,200);// oracle 4
+    //NodeContainer nodes=BuildExampleTopo(1000000,50,200);// oracle 5
+    //NodeContainer nodes=BuildExampleTopo(3000000,50,200);// oracle 6
+    //NodeContainer nodes=BuildExampleTopo(2000000,30,200);// oracle 7
+    //NodeContainer nodes=BuildExampleTopo(4000000,30,200);// oracle 8
+    //NodeContainer nodes=BuildExampleTopo(2000000,30,200);// oracle 9
     nodes.Get(0)->AddApplication (spath1);
     nodes.Get(1)->AddApplication (rpath1);
     spath1->Bind(1234);
     rpath1->Bind(4321);
-    spath1->SetOracleRate(2000000*4/5);//80% bw utility
+    spath1->SetOracleRate(3000000*4/5);//80% bw utility
     rpath1->SetOracleMode();
 	Ptr<PathSender> spath2=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath2=CreateObject<PathReceiver>();
-    NodeContainer nodes2=BuildExampleTopo(1000000,150,200); //150 ms
+    //NodeContainer nodes2=BuildExampleTopo(1000000,150,200); // 1
+    //NodeContainer nodes2=BuildExampleTopo(1000000,100,200); //2 
+    NodeContainer nodes2=BuildExampleTopo(1000000,100,200); // 3
+    //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);// 4
+    //NodeContainer nodes2=BuildExampleTopo(1000000,100,200);// 5
+    //NodeContainer nodes2=BuildExampleTopo(3000000,100,200); //6
+    //NodeContainer nodes2=BuildExampleTopo(3000000,50,200);//7
+    //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//8
+    //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//9
     nodes2.Get(0)->AddApplication (spath2);
     nodes2.Get(1)->AddApplication (rpath2);
     spath2->Bind(1234);

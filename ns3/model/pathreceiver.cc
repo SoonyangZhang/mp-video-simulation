@@ -25,6 +25,9 @@ PathReceiver::PathReceiver()
 }
 PathReceiver::~PathReceiver(){
 	bin_stream_destroy(&strm_);
+	if(pace_mode_==PaceMode::with_congestion){
+		pm_->Stop();
+	}
 	if(pm_){
 		delete pm_;
 	}
@@ -308,9 +311,6 @@ void PathReceiver::Stop(){
 		if(cc){
 			pm_->DeRegisterModule(cc);
 		}
-	}
-	if(pace_mode_==PaceMode::with_congestion){
-		pm_->Stop();
 	}
 }
 void PathReceiver::ConfigureOracleCongestion(){

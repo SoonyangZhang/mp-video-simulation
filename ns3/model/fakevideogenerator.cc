@@ -45,6 +45,8 @@ void FakeVideoGenerator::ConfigureSchedule(std::string type){
         schedule_=new ScaleSchedule(CostType::c_intant);
     }else if(type==std::string("wrr")){
         schedule_=new WrrSchedule(CostType::c_intant);
+    }else if(type==std::string("edcld8")){
+        schedule_=new EDCLDSchedule(0.8);
     }else if(type==std::string("edcld")){
         schedule_=new EDCLDSchedule(0.2);
     }else if(type==std::string("bc")){
@@ -53,6 +55,8 @@ void FakeVideoGenerator::ConfigureSchedule(std::string type){
          schedule_=new SFLSchedule();
     }else if(type==std::string("water")){
         schedule_=new WaterFillingSchedule();
+    }else if(type==std::string("minq")){
+         schedule_=new MinQueueSchedule(CostType::c_intant);
     }
 }
 void FakeVideoGenerator::RegisterSender(SenderInterface *s){
