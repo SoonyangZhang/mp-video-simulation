@@ -18,10 +18,14 @@
 #include "ns3/syncodecs.h"
 namespace ns3{
 //rate_  in bps;
+enum CodeCType{
+	ideal,
+	cisco_syn_codecs,
+};
 class FakeVideoGenerator :public RateChangeCallback
 ,public VideoSource{
 public:
-	FakeVideoGenerator(uint32_t minbitrate,uint32_t fs);
+	FakeVideoGenerator(uint8_t codec_type,uint32_t minbitrate,uint32_t fs);
 	~FakeVideoGenerator();
 	void ChangeRate(uint32_t bitrate) override;
 	void RegisterSender(SenderInterface *s);
@@ -56,6 +60,7 @@ private:
 	EventId m_timer;
 	RateCallback m_rate_cb_;
 	std::shared_ptr<syncodecs::Codec> m_codec;
+	uint8_t codec_type_{CodeCType::ideal};
 };
 }
 

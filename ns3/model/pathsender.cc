@@ -53,7 +53,9 @@ PathSender::~PathSender(){
 	if(controller_){
 		delete controller_;
 	}
-	delete pm_;
+    if(pm_){
+    delete pm_;
+	}
 }
 void PathSender::SetClock(webrtc::Clock *clock){
 	clock_=clock;
@@ -124,26 +126,20 @@ bool PathSender::TimeToSendPacket(uint32_t ssrc,
 	                              bool retransmission,
 	                              const webrtc::PacedPacketInfo& cluster_info){
     if(stop_){return true;}
-    sim_header_t header;
-	uint32_t uid=mpsender_->GetUid();
     webrtc::SendSideCongestionController *cc=NULL;
 	cc=controller_->s_cc_;
+    uint32_t uid=mpsender_->GetUid();
 	int64_t now=rtc::TimeMillis();
 	sim_segment_t *seg=NULL;
 	seg=get_segment(sequence_number,retransmission,now);
 	if(seg){
-		seg->send_ts = (uint16_t)(now - mpsender_->GetFirstTs()- seg->timestamp);
-		INIT_SIM_HEADER(header, SIM_SEG, uid);
-		header.ver=pid;
-		sim_encode_msg(&strm_, &header, seg);
-		SendToNetwork(strm_.data,strm_.used);
+		SendSegment(seg);
         if(cc){
         cc->AddPacket(uid,sequence_number,seg->data_size+SIM_SEGMENT_HEADER_SIZE,webrtc::PacedPacketInfo());
 		rtc::SentPacket sentPacket((int64_t)sequence_number,now);
 		cc->OnSentPacket(sentPacket);
         }
 		UpdatePaceQueueDelay(seg->send_ts);
-        pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
         if(!pending_delay_cb_.IsNull()){
         	pending_delay_cb_(seg->packet_id,seg->send_ts);
         }
@@ -226,6 +222,11 @@ void PathSender::SetOracleRate(uint32_t bps){
 	s_rate_=bps;
 	pace_mode_=PaceMode::no_congestion;
 }
+void PathSender::SetOracleWithOwnPace(uint32_t bps){
+	rate_=bps;
+	s_rate_=bps;
+	pace_mode_=PaceMode::no_webrtc;
+}
 void PathSender::ConfigureOracleCongestion(){
 	if(controller_){
 		return;
@@ -241,6 +242,15 @@ void PathSender::ConfigureOracleCongestion(){
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
     pm_->Start();
 }
+void PathSender::ConfigureNoCongestion(){
+	if(controller_){
+		return;
+	}
+	controller_=new CongestionController(NULL,ROLE::ROLE_SENDER);
+	if(mpsender_){
+		mpsender_->OnNetworkChanged(pid,rate_,0,rtt_);
+	}
+}
 void PathSender::ConfigureCongestion(){
 	if(controller_){
 		return;
@@ -251,9 +261,9 @@ void PathSender::ConfigureCongestion(){
 	cc=new webrtc::SendSideCongestionController(&m_clock,this,
     		&null_log_,send_bucket_);
 	controller_=new CongestionController(cc,ROLE::ROLE_SENDER);
-	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, 5 * kInitialBitrateBps);
+	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, 6* kInitialBitrateBps);
 	send_bucket_->SetEstimatedBitrate(kInitialBitrateBps);
-    send_bucket_->SetProbingEnabled(true);
+    send_bucket_->SetProbingEnabled(false);
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
     pm_->RegisterModule(cc,RTC_FROM_HERE);
     pm_->Start();
@@ -264,6 +274,41 @@ uint32_t PathSender::GetFirstTs(){
 		firstTs=mpsender_->GetFirstTs();
 	}
 	return firstTs;
+}
+void PathSender::StartPacing(){
+	if(stop_){
+		return;
+	}
+	if(m_pacing_running_){
+		return;
+	}
+	m_pacing_running_=true;
+	m_pacing_=Simulator::ScheduleNow(&PathSender::PacingSendSegment,this);
+}
+void PathSender::PacingSendSegment(){
+	if(m_pacing_.IsExpired()){
+		sim_segment_t *seg=get_segment();
+		if(seg){
+			SendSegment(seg);
+			uint32_t len=seg->data_size+SIM_SEGMENT_HEADER_SIZE;
+			double s=(double)len*8/(rate_*1.2);
+			Time next=Seconds(s);
+			m_pacing_=Simulator::Schedule(next,&PathSender::PacingSendSegment,this);
+			delete seg;
+		}else{
+			m_pacing_running_=false;
+		}
+	}
+}
+void PathSender::SendSegment(sim_segment_t *seg){
+    sim_header_t header;
+	uint32_t uid=mpsender_->GetUid();
+	uint32_t now=Simulator::Now().GetMilliSeconds();
+	seg->send_ts = (uint16_t)(now - mpsender_->GetFirstTs()- seg->timestamp);
+	INIT_SIM_HEADER(header, SIM_SEG, uid);
+	header.ver=pid;
+	sim_encode_msg(&strm_, &header, seg);
+	SendToNetwork(strm_.data,strm_.used);
 }
 bool  PathSender::QueueDropper(sim_segment_t *seg){
     bool ret=false;
@@ -295,11 +340,11 @@ bool PathSender::put(sim_segment_t*seg){
 	}
 	seg->packet_id=packet_seed_;
     packet_seed_++;
-    if(QueueDropper(seg)){
-        NS_LOG_INFO("drop"<<seg->packet_id);
-        delete seg;
-        return false;
-    }
+    //if(QueueDropper(seg)){
+    //    NS_LOG_INFO("drop"<<seg->packet_id);
+    //    delete seg;
+    //    return false;
+   // }
 	seg->transport_seq=trans_seq_;
 	uint16_t id=trans_seq_;	
 	trans_seq_++;
@@ -318,9 +363,11 @@ bool PathSender::put(sim_segment_t*seg){
 			send_bucket_->InsertPacket(webrtc::PacedSender::kNormalPriority,uid,
 					id,now,seg->data_size + SIM_SEGMENT_HEADER_SIZE,false);
 		}
-	}else{
+	}else if(pace_mode_==PaceMode::no_congestion){
 		send_bucket_->InsertPacket(webrtc::PacedSender::kNormalPriority,uid,
 				id,now,seg->data_size + SIM_SEGMENT_HEADER_SIZE,false);
+	}else if(pace_mode_==PaceMode::no_webrtc){
+		StartPacing();
 	}
 
 	return true;
@@ -333,11 +380,12 @@ sim_segment_t *PathSender::get_segment(uint16_t seq,bool retrans,uint32_t ts){
 	}
 	if(retrans==false){
 		{
-			rtc::CritScope cs(&buf_mutex_);
+			//rtc::CritScope cs(&buf_mutex_);
 			auto it=buf_.find(seq);
 			if(it!=buf_.end()){
 				seg=it->second;
 				len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
+				pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
 				buf_.erase(it);
 				//send_buf=AllocateSentBuf();
 				//send_buf->ts=ts;
@@ -354,10 +402,21 @@ sim_segment_t *PathSender::get_segment(uint16_t seq,bool retrans,uint32_t ts){
 	}
     return seg;
 }
+sim_segment_t *PathSender::get_segment(){
+	sim_segment_t *seg=NULL;
+	if(!buf_.empty()){
+		auto it=buf_.begin();
+		seg=it->second;
+		len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
+		pending_len_-=(seg->data_size+SIM_SEGMENT_HEADER_SIZE);
+		buf_.erase(it);
+	}
+	return seg;
+}
 uint32_t PathSender::get_delay(){
 	uint32_t delta=0;
 	{
-		rtc::CritScope cs(&buf_mutex_);
+		//rtc::CritScope cs(&buf_mutex_);
 		if(buf_.empty()){
 		}else{
 			uint32_t now=rtc::TimeMillis();
@@ -449,7 +508,7 @@ send_buf_t *  PathSender::GetSentPacketInfo(uint32_t seq){
 	send_buf_t *sent_buf=NULL;
 	send_buf_t *temp=NULL;
 	{
-		rtc::CritScope cs(&sent_buf_mutex_);
+		//rtc::CritScope cs(&sent_buf_mutex_);
 		for(auto it=sent_buf_.begin();it!=sent_buf_.end();it++){
 			temp=(*it);
 			if(temp->seg->packet_id>seq){
@@ -673,10 +732,8 @@ InetSocketAddress PathSender::GetLocalAddress(){
 void PathSender::CheckPing(){
 	uint32_t now=Simulator::Now().GetMilliSeconds();
 	if(pingTimer_.IsExpired()){
-		if((now-rtt_update_ts_)>PING_INTERVAL){
-			SendPingMsg(now);
-		}
-		Time next=MilliSeconds(PING_INTERVAL);
+		SendPingMsg(now);
+		Time next=MilliSeconds(rtt_);
 		pingTimer_=Simulator::Schedule(next,&PathSender::CheckPing,this);
 	}
 }
@@ -704,12 +761,13 @@ void PathSender::RecvPacket(Ptr<Socket> socket){
     }
     if(header1.GetPayloadType()==PayloadType::webrtc_fb){
         uint8_t buffer[packet->GetSize()];
-		packet->CopyData ((uint8_t*)&buffer, packet->GetSize ());
+		packet->CopyData ((uint8_t*)buffer, packet->GetSize ());
 		std::unique_ptr<webrtc::rtcp::TransportFeedback> fb=
-		webrtc::rtcp::TransportFeedback::ParseFrom((uint8_t*)&buffer, packet->GetSize ());
+		webrtc::rtcp::TransportFeedback::ParseFrom((uint8_t*)buffer, packet->GetSize ());
         webrtc::SendSideCongestionController *cc=NULL;
         cc=controller_->s_cc_;
 	if(cc){
+        //printf("fb\n");
 		cc->OnTransportFeedback(*fb.get());
 	}        
     }
@@ -742,8 +800,10 @@ void PathSender::ProcessingMsg(bin_stream_t *stream){
              NS_LOG_INFO("CON ACK");
 			if(pace_mode_==PaceMode::with_congestion){
 				ConfigureCongestion();
-			}else{
+			}else if(pace_mode_==PaceMode::no_congestion){
 				ConfigureOracleCongestion();
+			}else{
+				ConfigureNoCongestion();
 			}
             CheckPing();
             mpsender_->NotifyPathUsable(pid);

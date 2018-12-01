@@ -23,6 +23,7 @@
 #include "ns3/mpvideoheader.h"
 #include "ns3/simulationclock.h"
 #include "ns3/callback.h"
+#include "ns3/random-variable-stream.h"
 namespace ns3{
 class PathReceiver :public webrtc::PacketRouter
 ,public Application{
@@ -130,6 +131,8 @@ private:
     Ptr<PathSender> sender_;
     LatencyCallback delay_cb_;
     int8_t pace_mode_{PaceMode::with_congestion};
+    double fake_loss_rate_{0.05};
+    Ptr<RandomVariableStream> m_rand_;
 };
 }
 

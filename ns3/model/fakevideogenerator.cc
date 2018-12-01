@@ -5,7 +5,7 @@
 #include "ns3/simulator.h"
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE ("FakeVideoGenerator");
-FakeVideoGenerator::FakeVideoGenerator(uint32_t minbitrate,uint32_t fs)
+FakeVideoGenerator::FakeVideoGenerator(uint8_t codec_type,uint32_t minbitrate,uint32_t fs)
 :min_bitrate_(minbitrate)
 ,fs_(fs)
 ,rate_(min_bitrate_)
@@ -15,14 +15,18 @@ FakeVideoGenerator::FakeVideoGenerator(uint32_t minbitrate,uint32_t fs)
 ,frame_id_(0)
 ,running_(false)
 ,sender_(NULL){
+	codec_type_=codec_type;
 	delta_=1000/fs_;
 	ratecontrol_.RegisterRateChangeCallback(this);
     double fps=fs_;
-    auto innerCodec = new syncodecs::StatisticsCodec{fps};
-    //auto codec = new syncodecs::ShapedPacketizer{innerCodec, 1000};
-	m_codec.reset(innerCodec);
-    double codec_rate=min_bitrate_;
-	m_codec->setTargetRate (codec_rate);
+    if(codec_type_==CodeCType::cisco_syn_codecs){
+        auto innerCodec = new syncodecs::StatisticsCodec{fps};
+        //auto codec = new syncodecs::ShapedPacketizer{innerCodec, 1000};
+    	m_codec.reset(innerCodec);
+        double codec_rate=min_bitrate_;
+    	m_codec->setTargetRate (codec_rate);
+    }
+
 }
 FakeVideoGenerator::~FakeVideoGenerator(){
     if(schedule_){
@@ -43,10 +47,10 @@ void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	if(!m_rate_cb_.IsNull()){
 		m_rate_cb_(bitrate);
 	}
-    double codec_rate=rate_;
-	m_codec->setTargetRate (codec_rate);
-	//uint32_t elapse=now-first_ts_;
-	//NS_LOG_INFO("t "<<elapse<<" r "<<rate_);
+	if(codec_type_==CodeCType::cisco_syn_codecs){
+	    double codec_rate=rate_;
+		m_codec->setTargetRate (codec_rate);
+	}
 }
 void FakeVideoGenerator::ConfigureSchedule(std::string type){
     if(type==std::string("scale")){
@@ -97,14 +101,20 @@ void FakeVideoGenerator::Generate()
 {
 	if(m_timer.IsExpired())
 	{
-	    syncodecs::Codec& codec = *m_codec;
-        double codec_rate=rate_;
-	    codec.setTargetRate (codec_rate);
-	    ++codec;
-	    const auto bytesToSend = codec->first.size ();
-        NS_LOG_INFO("rate "<<std::to_string(codec.getTargetRate())<<" "<<std::to_string(bytesToSend));
+		uint32_t bytesToSend=0;
+		double secsToNextFrame=0;
+		if(codec_type_==CodeCType::cisco_syn_codecs){
+		    syncodecs::Codec& codec = *m_codec;
+	        double codec_rate=rate_;
+		    codec.setTargetRate (codec_rate);
+		    ++codec;
+		    bytesToSend = codec->first.size ();
+		    secsToNextFrame = codec->second;
+		}else if(codec_type_==CodeCType::ideal){
+			bytesToSend=rate_/(fs_ * 8.f);
+			secsToNextFrame=1./fs_;
+		}
 		SendFrame(bytesToSend);
-		auto secsToNextFrame = codec->second;
 		Time Next{Seconds(secsToNextFrame)};
 		m_timer=Simulator::Schedule(Next,&FakeVideoGenerator::Generate,this);
 	}

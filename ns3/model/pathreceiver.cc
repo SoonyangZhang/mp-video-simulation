@@ -22,6 +22,8 @@ PathReceiver::PathReceiver()
 	pm_=NULL;
 	clock_=NULL;
     rbe_=NULL;
+    m_rand_=CreateObject<UniformRandomVariable>();
+    m_rand_->SetStream(54657594268);
 }
 PathReceiver::~PathReceiver(){
 	bin_stream_destroy(&strm_);
@@ -183,7 +185,7 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		CheckPing();
 		first_packet_=false;
 	}
-	uint32_t now=rtc::TimeMillis();
+	uint32_t now=Simulator::Now().GetMilliSeconds();
 	{
 		uint32_t overhead=seg->data_size + SIM_SEGMENT_HEADER_SIZE;
         if(overhead>1500)
@@ -197,7 +199,11 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		webrtc::ReceiveSideCongestionController *cc=NULL;
 		cc=controller_->r_cc_;
 		if(cc){
-			cc->OnReceivedPacket(now,overhead,fakeHeader);
+            if(m_rand_->GetValue()<fake_loss_rate_){
+            }else{
+                cc->OnReceivedPacket(now,overhead,fakeHeader);
+            }
+			
 		}
 	}
 	uint32_t seq=seg->packet_id;
@@ -227,7 +233,7 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		delay_cb_(seg->packet_id,owd);
 	}
 	if(mpreceiver_){
-		mpreceiver_->DeliverToCache(pid,seg);
+		mpreceiver_->DeliverToCache(pid,seg,NULL);
 	}
     //uint32_t min_seq=GetMinRecvSeq();
     //uint32_t loss_size=GetLossTableSize();

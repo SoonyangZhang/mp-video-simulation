@@ -34,7 +34,7 @@ public:
 	void Process();
 	void Stop();
 	bool RegisterDataSink(NetworkDataConsumer* c);
-    void DeliverToCache(uint8_t pid,sim_segment_t* d) override; 
+    void DeliverToCache(uint8_t pid,sim_segment_t* d,void *arg) override; 
     uint32_t GetUid() override{return uid_;}
 	void RegisterPath(Ptr<PathReceiver> path);
     void StopCallback() override;

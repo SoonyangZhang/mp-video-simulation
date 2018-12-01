@@ -53,7 +53,7 @@ class ReceiverInterface{
 public:
 	virtual ~ReceiverInterface(){}
     virtual uint32_t GetUid()=0;
-    virtual void DeliverToCache(uint8_t pid,sim_segment_t* d)=0;
+    virtual void DeliverToCache(uint8_t pid,sim_segment_t* d,void *arg)=0;
     virtual void StopCallback()=0;
 };
 class SenderInterface{

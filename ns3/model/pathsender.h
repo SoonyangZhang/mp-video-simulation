@@ -50,11 +50,14 @@ public:
 	                      int64_t rtt_ms,
 	                      int64_t probing_interval_ms) override;
 	void SetOracleRate(uint32_t bps);
+	void SetOracleWithOwnPace(uint32_t bps);
 	void ConfigureOracleCongestion();
+	void ConfigureNoCongestion();
 	void ConfigureCongestion();
 	uint32_t GetFirstTs();
 	bool put(sim_segment_t*seg);
 	sim_segment_t *get_segment(uint16_t seq,bool retrans,uint32_t ts);
+	sim_segment_t *get_segment();
 	uint32_t get_delay();
 	uint32_t get_len();
     uint32_t GetCost();
@@ -90,6 +93,9 @@ private:
 	void RemoveSentBufUntil(uint32_t seq);
 	void SentBufCollection(uint32_t now);
     bool QueueDropper(sim_segment_t*seg);
+    void StartPacing();
+    void PacingSendSegment();
+    void SendSegment(sim_segment_t *seg);
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -106,9 +112,9 @@ public:
 	uint8_t con_c;
 	uint32_t con_ts;
 	uint32_t rtt_;
-	uint32_t sum_rtt_;
+	uint64_t sum_rtt_;
 	uint32_t max_rtt_;
-	uint32_t rtt_num_;
+	uint64_t rtt_num_;
 	uint32_t min_rtt_;
 	uint32_t rtt_var_;
 	uint32_t rtt_update_ts_;
@@ -138,7 +144,7 @@ private:
     uint32_t pending_len_;
 	ProcessModule *pm_;
 	webrtc::Clock *clock_;
-	webrtc::PacedSender *send_bucket_;
+	webrtc::PacedSender *send_bucket_{NULL};
     //TPacedSender *send_bucket_;
 	webrtc::RtcEventLogNullImpl null_log_;
     EventId pingTimer_;
@@ -146,6 +152,8 @@ private:
     EventId gcTimer_;
     SimulationClock m_clock;
     PendingLatency pending_delay_cb_;
+    EventId m_pacing_;
+    bool m_pacing_running_{false};
 };
 }
 

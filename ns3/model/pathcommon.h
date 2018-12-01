@@ -17,6 +17,7 @@ struct send_buf_t{
 };
 enum PaceMode{
 	no_congestion,// totally know the path bandwidth
+	no_webrtc,//not use webrtc pacing
 	with_congestion, //work with GCC
 };
 #define PING_INTERVAL 150

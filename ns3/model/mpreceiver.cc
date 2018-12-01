@@ -175,7 +175,7 @@ void  MultipathReceiver::CheckFrameDeliverBlock(uint32_t now){
 		}
 	}
 }
-static uint32_t max_frame_waitting=500;
+static uint32_t max_frame_waitting=1000;
 void MultipathReceiver::CheckDeliverFrame(){
 	video_frame_t *frame=NULL;
 	video_frame_t *waitting_for_delete=NULL;
@@ -191,8 +191,8 @@ void MultipathReceiver::CheckDeliverFrame(){
 			waitting_for_delete=frame;
 		}else if(frame->recv<frame->total){
 			if(frame->waitting_ts!=-1){
-                uint32_t delta=now-frame->ts;
-				if(now>frame->waitting_ts||delta>max_frame_waitting){
+                uint32_t delta=now-(frame->frame_first_ts+frame->frame_timestamp);
+				if(/*now>frame->waitting_ts||*/delta>max_frame_waitting){
 					DeliverFrame(frame);
 					PacketConsumed(frame);
 					UpdateDeliverTime(now);
@@ -248,7 +248,7 @@ uint32_t MultipathReceiver::GetWaittingDuration(){
 }
 #include<stdio.h>
 // implement the most simple way retransmission waititng time;
-void MultipathReceiver::DeliverToCache(uint8_t pid,sim_segment_t* d){
+void MultipathReceiver::DeliverToCache(uint8_t pid,sim_segment_t* d,void *arg){
     if(stop_){
     return ;
     }
