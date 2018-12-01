@@ -68,9 +68,9 @@ int main(int argc, char *argv[]){
    // LogComponentEnable("SFLSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("EDCLDSchedule",LOG_LEVEL_ALL);
     //LogComponentEnable("FakeVideoGenerator",LOG_LEVEL_ALL);
-    std::string scheduleType;//=std::string("scale");
-    std::string test_case=std::string("2");
-    std::string mode=std::string("oracle");
+    std::string scheduleType;//=std::string("wrr");
+    std::string test_case=std::string("10");
+    std::string mode=std::string("normal");//std::string("ownpace");//std::string("oracle");
     CommandLine cmd;
     cmd.AddValue ("st", "schedule type", scheduleType);
     cmd.AddValue ("cs", "test_case", test_case);
@@ -140,7 +140,13 @@ int main(int argc, char *argv[]){
     	bw2=2000000;
     	nodes=BuildExampleTopo(bw1,30,200);
     	nodes2=BuildExampleTopo(bw2,100,200);
+    }else if(test_case==std::string("10")){
+    	bw1=3000000;
+    	bw2=2000000;
+    	nodes=BuildExampleTopo(bw1,100,300);
+    	nodes2=BuildExampleTopo(bw2,100,200);
     }
+    
     //NodeContainer nodes=BuildExampleTopo(2000000,100,200); //oracle 1
     //NodeContainer nodes=BuildExampleTopo(2000000,100,200);// oracle 2
     //NodeContainer nodes=BuildExampleTopo(3000000,150,200);// oracle 3
@@ -167,7 +173,17 @@ int main(int argc, char *argv[]){
 
     spath2->SetOracleRate(bw2*4/5);//80% bw utility
     rpath2->SetOracleMode();   
+    }else if(mode==std::string("ownpace")){
+    spath1->SetOracleWithOwnPace(bw1*4/5);//80% bw utility
+    rpath1->SetOracleMode(); 
+
+    spath2->SetOracleWithOwnPace(bw2*4/5);//80% bw utility
+    rpath2->SetOracleMode();    
+    }else{
+    
     }
+
+
     //NodeContainer nodes2=BuildExampleTopo(1000000,150,200); // 1
     //NodeContainer nodes2=BuildExampleTopo(1000000,100,200); //2 
     //NodeContainer nodes2=BuildExampleTopo(1000000,100,200); // 3
@@ -177,26 +193,26 @@ int main(int argc, char *argv[]){
     //NodeContainer nodes2=BuildExampleTopo(3000000,50,200);//7
     //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//8
     //NodeContainer nodes2=BuildExampleTopo(2000000,100,200);//9
-    int record_id=1;
+    //int record_id=1;
 
-    std::string delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
-    record_id++;
+    //std::string delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
+    //record_id++;
     TraceDelayInfo trace_d_p1;
-    trace_d_p1.OpenTracePendingDelayFile(delay_name);
-    trace_d_p1.OpenTraceOwdFile(delay_name);
+    //trace_d_p1.OpenTracePendingDelayFile(delay_name);
+    //trace_d_p1.OpenTraceOwdFile(delay_name);
 
-    spath1->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p1));
-    rpath1->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p1));
+    //spath1->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p1));
+    //rpath1->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p1));
     rpath1->SetSourceEnd(spath1);
-    delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
-    record_id++;
+    //delay_name=schedule_prefix+std::string("_")+test_case+std::string("_")+std::to_string(record_id);
+    //record_id++;
     TraceDelayInfo trace_d_p2;
-    trace_d_p2.OpenTracePendingDelayFile(delay_name);
-    trace_d_p2.OpenTraceOwdFile(delay_name);
+    //trace_d_p2.OpenTracePendingDelayFile(delay_name);
+    //trace_d_p2.OpenTraceOwdFile(delay_name);
 
-    spath2->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p2));
-    rpath2->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p2));
-    rpath2->SetSourceEnd(spath2);
+    //spath2->SetPendingDelayTrace(MakeCallback(&TraceDelayInfo::RecvPendDelay,&trace_d_p2));
+   // rpath2->SetPacketDelayTrace(MakeCallback(&TraceDelayInfo::RecvOwd,&trace_d_p2));
+   // rpath2->SetSourceEnd(spath2);
 
     sender.RegisterPath(spath1);
     receiver.RegisterPath(rpath1);
@@ -205,7 +221,7 @@ int main(int argc, char *argv[]){
     receiver.RegisterPath(rpath2);
 
     std::string ratename=schedule_prefix+std::string("_")+test_case;
-    FakeVideoGenerator source(MIN_SEND_BITRATE,30);
+    FakeVideoGenerator source(CodeCType::ideal,MIN_SEND_BITRATE,30);
     source.ConfigureSchedule(schedule_prefix);
     source.RegisterSender(&sender);
     
