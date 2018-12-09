@@ -199,7 +199,7 @@ void PathReceiver::OnReceiveSegment(sim_header_t *header,sim_segment_t *seg){
 		webrtc::ReceiveSideCongestionController *cc=NULL;
 		cc=controller_->r_cc_;
 		if(cc){
-            if(m_rand_->GetValue()<fake_loss_rate_){
+            if(m_randomLoss&&(m_rand_->GetValue()<fake_loss_rate_)){
             }else{
                 cc->OnReceivedPacket(now,overhead,fakeHeader);
             }

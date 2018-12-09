@@ -44,6 +44,7 @@ void FakeVideoGenerator::ChangeRate(uint32_t bitrate){
 	if(first_ts_==0){
 		first_ts_=now;
 	}
+    m_last_log_ts=now;
 	if(!m_rate_cb_.IsNull()){
 		m_rate_cb_(bitrate);
 	}
@@ -114,6 +115,16 @@ void FakeVideoGenerator::Generate()
 			bytesToSend=rate_/(fs_ * 8.f);
 			secsToNextFrame=1./fs_;
 		}
+        if(m_last_log_ts!=0){
+            uint32_t now=Simulator::Now().GetMilliSeconds();
+            if((now-m_last_log_ts)>500){
+                 if(!m_rate_cb_.IsNull()){
+		            m_rate_cb_(rate_);
+	             }
+                 m_last_log_ts=now;
+            }
+           
+        }
 		SendFrame(bytesToSend);
 		Time Next{Seconds(secsToNextFrame)};
 		m_timer=Simulator::Schedule(Next,&FakeVideoGenerator::Generate,this);

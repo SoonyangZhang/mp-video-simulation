@@ -84,6 +84,9 @@ public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
 	void CheckPing();
+    void SetMaxBw(uint32_t maxBw){
+        m_maxBw=maxBw;
+    }
 private:
 	void UpdatePaceQueueDelay(uint32_t sent_ts);
 	send_buf_t *AllocateSentBuf();
@@ -154,6 +157,7 @@ private:
     PendingLatency pending_delay_cb_;
     EventId m_pacing_;
     bool m_pacing_running_{false};
+    uint32_t m_maxBw{2000000};
 };
 }
 

@@ -160,6 +160,7 @@ int main(int argc, char *argv[]){
     nodes.Get(1)->AddApplication (rpath1);
     spath1->Bind(1234);
     rpath1->Bind(4321);
+    spath1->SetMaxBw(bw1);
 
 	Ptr<PathSender> spath2=CreateObject<PathSender>();
 	Ptr<PathReceiver> rpath2=CreateObject<PathReceiver>();
@@ -167,6 +168,7 @@ int main(int argc, char *argv[]){
     nodes2.Get(1)->AddApplication (rpath2);
     spath2->Bind(1234);
     rpath2->Bind(4321);
+    spath2->SetMaxBw(bw2);
     if(mode==std::string("oracle")){
     spath1->SetOracleRate(bw1*4/5);//80% bw utility
     rpath1->SetOracleMode(); 

@@ -80,6 +80,9 @@ public:
 	void SetOracleMode(){
 		pace_mode_=PaceMode::no_congestion;
 	}
+    void DisableRandomLoss(bool randomloss){
+        m_randomLoss=randomloss;
+    }
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -133,6 +136,7 @@ private:
     int8_t pace_mode_{PaceMode::with_congestion};
     double fake_loss_rate_{0.05};
     Ptr<RandomVariableStream> m_rand_;
+    bool m_randomLoss{false};
 };
 }
 

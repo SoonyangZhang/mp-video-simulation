@@ -261,7 +261,7 @@ void PathSender::ConfigureCongestion(){
 	cc=new webrtc::SendSideCongestionController(&m_clock,this,
     		&null_log_,send_bucket_);
 	controller_=new CongestionController(cc,ROLE::ROLE_SENDER);
-	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, 6* kInitialBitrateBps);
+	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, m_maxBw);
 	send_bucket_->SetEstimatedBitrate(kInitialBitrateBps);
     send_bucket_->SetProbingEnabled(false);
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);

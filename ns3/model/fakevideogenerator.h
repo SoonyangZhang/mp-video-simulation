@@ -59,6 +59,7 @@ private:
     Schedule *schedule_{NULL};
 	EventId m_timer;
 	RateCallback m_rate_cb_;
+    uint32_t m_last_log_ts{0};
 	std::shared_ptr<syncodecs::Codec> m_codec;
 	uint8_t codec_type_{CodeCType::ideal};
 };
