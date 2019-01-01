@@ -2,6 +2,10 @@
 
 def build(bld):
     mpvideo= bld.create_ns3_module('mp-video', ['core','network','internet','ns3-rmcat'])
+    mpvideo.env.append_value('CXXFLAGS', '-std=c++14');
+    mpvideo.env.append_value("CXXFLAGS", "-I/home/zsy/MyTest/my_quic_2/libquic")
+    mpvideo.env.append_value("LINKFLAGS", ["-L/home/zsy/MyTest/my_quic_2/build/libquic"])
+    mpvideo.env.append_value("LIB", ["quic"])
     mpvideo.source = [
     'model/cf_stream.c',
     'model/sim_proto.c',
@@ -34,6 +38,15 @@ def build(bld):
     'model/fun_test/t_pacer_sender.cc',
     'model/fun_test/t_sendagent.cc',
     'model/fun_test/t_recvagent.cc',
+    'model/mp_sender_v1.cc',
+    'model/mp_receiver_v1.cc',
+    'model/path_sender_v1.cc',
+    'model/path_receiver_v1.cc',
+    'model/idealschedule.cc',
+    'model/idealencoder.cc',
+    'model/video_proto.cc',
+    'model/ns_quic_time.cc',
+    'model/trace_v1.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -73,5 +86,16 @@ def build(bld):
     'model/fun_test/t_pacer_sender.h',
     'model/fun_test/t_sendagent.h',
     'model/fun_test/t_recvagent.h',
+    'model/mp_sender_v1.h',
+    'model/mp_receiver_v1.h',
+    'model/path_sender_v1.h',
+    'model/path_receiver_v1.h',
+    'model/video_proto.h',
+    'model/interface_v1.h',
+    'model/videosink.h',
+    'model/idealschedule.h',
+    'model/idealencoder.h',
+    'model/ns_quic_time.h',
+    'model/trace_v1.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

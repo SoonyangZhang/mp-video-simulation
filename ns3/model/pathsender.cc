@@ -38,6 +38,7 @@ PathSender::PathSender()
 ,controller_(NULL)
 ,len_(0)
 ,pending_len_(0)
+,bw_(quic::QuicBandwidth::Zero())
 {
 	bin_stream_init(&strm_);
 	stop_=false;
@@ -263,7 +264,7 @@ void PathSender::ConfigureCongestion(){
 	controller_=new CongestionController(cc,ROLE::ROLE_SENDER);
 	cc->SetBweBitrates(WEBRTC_MIN_BITRATE, kInitialBitrateBps, m_maxBw);
 	send_bucket_->SetEstimatedBitrate(kInitialBitrateBps);
-    send_bucket_->SetProbingEnabled(false);
+    send_bucket_->SetProbingEnabled(true);
     pm_->RegisterModule(send_bucket_,RTC_FROM_HERE);
     pm_->RegisterModule(cc,RTC_FROM_HERE);
     pm_->Start();

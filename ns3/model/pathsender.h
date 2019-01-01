@@ -29,6 +29,7 @@
 #include "ns3/mpvideoheader.h"
 #include "ns3/simulationclock.h"
 #include "ns3/callback.h"
+#include "net/third_party/quic/core/quic_bandwidth.h"
 namespace ns3{
 class PathSender:public webrtc::PacedSender::PacketSender,
 public webrtc::SendSideCongestionController::Observer,
@@ -158,6 +159,7 @@ private:
     EventId m_pacing_;
     bool m_pacing_running_{false};
     uint32_t m_maxBw{2000000};
+    quic::QuicBandwidth bw_;
 };
 }
 
