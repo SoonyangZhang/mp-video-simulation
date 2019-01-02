@@ -10,6 +10,7 @@ public:
 };
 class VideoSource{
 public:
+	virtual uint32_t get_fps()=0;
 	virtual void RegisterSink(VideoSink *sink)=0;
 	virtual void HeartBeat(uint32_t now)=0;
 	virtual void ChangeRate(uint32_t bps)=0;

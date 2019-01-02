@@ -13,6 +13,9 @@ public:
 			uint32_t max_bps);
 	~IdealEncoder(){}
 	void set_fps(uint32_t fp){fps_=fp;}
+	uint32_t get_fps() override{
+        return fps_;
+        }
 	void HeartBeat(uint32_t now) override;
 	void RegisterSink(VideoSink *sink) override{
 		sink_=sink;

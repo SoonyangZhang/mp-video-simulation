@@ -17,6 +17,7 @@ public:
 	void Process();
 	void set_encoder(VideoSource *source){
 		source_=source;
+		fps_=source_->get_fps();
 		source->RegisterSink(this);
 	}
 	void set_schedule(ScheduleV1* schedule){
@@ -62,6 +63,7 @@ private:
 	uint32_t heart_beat_t_{1};
 	bool timer_trigger_{false};
 	TraceSumRate trace_rate_cb_;
+	uint32_t fps_{25};
 };
 }
 

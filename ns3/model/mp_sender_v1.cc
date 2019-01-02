@@ -51,6 +51,7 @@ void MpSenderV1::RegisterSender(ns3::Ptr<ns3::PathSenderV1> sender){
 	auto it=waitting_paths_.find(pid);
 	if(it==waitting_paths_.end()){
 		waitting_paths_.insert(std::make_pair(pid,sender));
+		sender->ConfigureFps(fps_);
 		sender->RegisterMpsender(this);
 	}
 }

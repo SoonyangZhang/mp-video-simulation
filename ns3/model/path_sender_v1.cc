@@ -9,6 +9,8 @@
 #define MAX_BUF_SIZE 1400
 #define PADDING_SIZE 1000
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
+//insist factor 0.6 
+//and disable congestion backoff mode
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("PathSenderV1");
 const int smooth_rate_num=90;
@@ -16,11 +18,12 @@ const int smooth_rate_den=100;
 PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
 :min_bps_(min_bps)
 ,max_bps_(max_bps)
-,cc_(min_bps){
+,cc_(min_bps,this){
 //why
     quic::QuicBandwidth bw=quic::QuicBandwidth::FromBitsPerSecond(max_bps_);
 	pacer_.set_sender(&cc_);
-    pacer_.set_max_pacing_rate(bw);
+    //pacer_.set_max_bps(2000000);
+   // pacer_.set_max_pacing_rate(bw);
 	bps_=500000;
 }
 void PathSenderV1::HeartBeat(){
@@ -28,11 +31,16 @@ void PathSenderV1::HeartBeat(){
 		ProcessVideoPacket();
         uint32_t now=Simulator::Now().GetMilliSeconds();
         RecordRate(now);
-        UpdateRate(now);
+        //UpdateRate(now);
 		Time next=MilliSeconds(heart_beat_t_);
 		heart_timer_=Simulator::Schedule(next,
 				&PathSenderV1::HeartBeat,this);
 	}
+}
+void PathSenderV1::ConfigureFps(uint32_t fps){
+// 40 ms
+	uint32_t ms=1000/fps;
+//	cc_.UserDefinePeriod(ms);
 }
 void PathSenderV1::OnVideoPacket(uint32_t packet_id,
 		std::shared_ptr<zsy::VideoPacketWrapper>packet,
@@ -82,6 +90,20 @@ void PathSenderV1::ConfigurePeer(Ipv4Address addr,uint16_t port){
 	peer_ip_=addr;
 	peer_port_=port;
 }
+void PathSenderV1::OnBandwidthUpdate(){
+		int64_t bw=0;
+		bw=cc_.GetReferenceRate().ToKBitsPerSecond()*1000;
+		if(bw<min_bps_){
+			bw=min_bps_;
+		}
+        bps_=bw;
+		//bps_=(smooth_rate_num*bw+(smooth_rate_den
+		//		-smooth_rate_num)*bps_)/smooth_rate_den;
+        //NS_LOG_INFO("refer "<<bps_);
+        if(mpsender_){
+            mpsender_->OnRateUpdate();
+        }    
+}
 void PathSenderV1::StartApplication(){
 	//SendPingMessage();
     if(mpsender_){
@@ -109,7 +131,9 @@ void PathSenderV1::ProcessVideoPacket(){
 			SendStreamPacket(quic_now,false);
 			return;
 		}
-		SendPaddingPacket(quic_now);
+        /*if(cc_.ShouldSendProbePacket())*/{
+            SendPaddingPacket(quic_now);
+        }
 	}
 }
 void PathSenderV1::SendPingMessage(){
@@ -262,8 +286,9 @@ void PathSenderV1::UpdateRate(uint32_t now){
 		if(bw<min_bps_){
 			bw=min_bps_;
 		}
-		bps_=(smooth_rate_num*bw+(smooth_rate_den
-				-smooth_rate_num)*bps_)/smooth_rate_den;
+        bps_=bw;
+		//bps_=(smooth_rate_num*bw+(smooth_rate_den
+		//		-smooth_rate_num)*bps_)/smooth_rate_den;
 		rate_update_next_=now+cur_rtt_;
         //NS_LOG_INFO("refer "<<bps_);
         if(mpsender_){

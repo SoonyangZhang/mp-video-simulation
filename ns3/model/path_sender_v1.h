@@ -12,8 +12,12 @@
 #include "ns3/event-id.h"
 #include "ns3/callback.h"
 #include "net/my_pacing_sender.h"
+#include "net/my_controller_interface.h"
+#include "ns3/idealpacer.h"
+#include "idealcc.h"
 namespace ns3{
-class PathSenderV1:public Application{
+class PathSenderV1:public Application,
+public quic::BandwidthObserver{
 public:
 	PathSenderV1(uint32_t min_bps,uint32_t max_bps);
 	void HeartBeat();
@@ -26,6 +30,7 @@ public:
 	void RegisterMpsender(zsy::PathStatusNotifier *mpsender){
 		mpsender_=mpsender;
 	}
+	void ConfigureFps(uint32_t fps);
 	uint64_t get_rate(){ return bps_;}
 	void OnVideoPacket(uint32_t packet_id,
 			std::shared_ptr<zsy::VideoPacketWrapper>packet,bool is_retrans);
@@ -33,6 +38,7 @@ public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
 	void ConfigurePeer(Ipv4Address addr,uint16_t port);
+    void OnBandwidthUpdate() override;
 	typedef Callback<void,uint32_t>TraceRate;
 	void SetRateTraceFunc(TraceRate cb){
 		trace_rate_cb_=cb;
@@ -93,7 +99,9 @@ private:
     EventId heart_timer_;
     uint32_t heart_beat_t_{1};//1 ms;
     quic::MyPacingSender pacer_;
+    //IdealPacingSender pacer_;//for test;
     quic::MyBbrSender cc_;
+    //IdealCC cc_;
     TraceRate trace_rate_cb_;
     TraceLoss trace_loss_cb_;
     TraceTimeOffset trace_time_offset_cb_;

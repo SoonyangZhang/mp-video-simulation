@@ -87,7 +87,7 @@ uint32_t VideoPacketReceiveWrapper::get_owd(){
 	return owd;
 }
 uint32_t VideoPacketReceiveWrapper::get_frame_timestamp(){
-	uint32_t frame_timestamp=segment_->timestamp;//+first_ts_;
+	uint32_t frame_timestamp=segment_->timestamp+first_ts_;
 	return frame_timestamp;
 }
 VideoFrameBuffer::VideoFrameBuffer(uint8_t ftype,
