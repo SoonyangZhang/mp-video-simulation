@@ -20,6 +20,7 @@ class PathSenderV1:public Application,
 public quic::BandwidthObserver{
 public:
 	PathSenderV1(uint32_t min_bps,uint32_t max_bps);
+    ~PathSenderV1();
 	void HeartBeat();
 	void set_path_id(uint8_t pid){
 		pid_=pid;
@@ -31,7 +32,6 @@ public:
 		mpsender_=mpsender;
 	}
 	void ConfigureFps(uint32_t fps);
-	uint64_t get_rate(){ return bps_;}
 	void OnVideoPacket(uint32_t packet_id,
 			std::shared_ptr<zsy::VideoPacketWrapper>packet,bool is_retrans);
 	void OnAck(uint64_t seq);
@@ -51,6 +51,13 @@ public:
 	void SetLossTraceFunc(TraceLoss cb){
 		trace_loss_cb_=cb;
 	}
+	uint64_t GetIntantRate(){
+		return bps_;
+	}
+	uint64_t GetPendingLen(){
+		return pending_bytes_;
+	}
+	uint64_t get_rate(){ return bps_;}
 	uint32_t get_rtt(){
 		return cur_rtt_;
 	}
@@ -69,6 +76,7 @@ private:
 	void RecvPacket(Ptr<Socket> socket);
 	void SendToNetwork(Ptr<Packet> p);
 	void OnIncomingMessage(uint8_t *buf,uint32_t len);
+    void SendFakePacket();//for test
 	void SendPaddingPacket(quic::QuicTime quic_now);
 	void SendStreamPacket(quic::QuicTime quic_now,bool is_retrans);
 	void RecordRate(uint32_t now);
@@ -77,6 +85,9 @@ private:
 	void DetectLoss(uint64_t seq);
 	void RemoveSeqDelayMapLe(uint64_t seq);
 	void RemoveSeqIdMapLe(uint64_t seq);
+	void CheckQueueExceed(uint32_t now);
+	void SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketWrapper>packet,
+			uint32_t ns_now);
 	uint32_t min_bps_;
 	uint32_t max_bps_;
 	bool first_packet_{true};
@@ -100,7 +111,7 @@ private:
     uint32_t heart_beat_t_{1};//1 ms;
     quic::MyPacingSender pacer_;
     //IdealPacingSender pacer_;//for test;
-    quic::MyBbrSender cc_;
+    quic::CongestionController *cc_{NULL};
     //IdealCC cc_;
     TraceRate trace_rate_cb_;
     TraceLoss trace_loss_cb_;

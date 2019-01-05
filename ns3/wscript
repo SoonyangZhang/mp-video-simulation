@@ -42,12 +42,15 @@ def build(bld):
     'model/mp_receiver_v1.cc',
     'model/path_sender_v1.cc',
     'model/path_receiver_v1.cc',
+    'model/interface_v1.cc',
     'model/idealpacer.cc',
     'model/idealschedule.cc',
+    'model/edcld_v1.cc',
     'model/idealencoder.cc',
     'model/video_proto.cc',
     'model/ns_quic_time.cc',
     'model/trace_v1.cc',
+    'model/congestion/bbr_sender_v1.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -97,8 +100,10 @@ def build(bld):
     'model/idealcc.h',
     'model/idealpacer.h',
     'model/idealschedule.h',
+    'model/edcld_v1.h',
     'model/idealencoder.h',
     'model/ns_quic_time.h',
     'model/trace_v1.h',
+    'model/congestion/bbr_sender_v1.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

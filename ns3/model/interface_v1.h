@@ -21,27 +21,10 @@ public:
 	void SetSender(MpSenderIntefaceV1* s){sender_=s;}
 	//std::map<uint32_t,uint32_t>&packets  packet id ->length
 	virtual void IncomingPackets(std::map<uint32_t,uint32_t>&packets,uint32_t size)=0;
-	virtual void RetransPackets(uint32_t packet_id,uint8_t origin_pid)=0;
-	virtual void SendAllPackesToPath(std::map<uint32_t,uint32_t>&packets,uint8_t pid)=0;
-	void RegisterPath(uint8_t  pid){
-		for(auto it=pids_.begin();it!=pids_.end();it++){
-			if((*it)==pid){
-				return;
-			}
-		}
-		pids_.push_back(pid);
-	}
-	void UnregisterPath(uint8_t pid){
-		for(auto it=pids_.begin();it!=pids_.end();){
-			if((*it)==pid){
-				it=pids_.erase(it);
-				break;
-			}
-			else{
-				it++;
-			}
-		}
-	}
+	virtual void RetransPackets(uint32_t packet_id,uint8_t origin_pid);
+	virtual void SendAllPackesToPath(std::map<uint32_t,uint32_t>&packets,uint8_t pid);
+	virtual void RegisterPath(uint8_t  pid);
+	virtual void UnregisterPath(uint8_t pid);
 protected:
     std::vector<uint8_t> pids_;
     MpSenderIntefaceV1 *sender_;

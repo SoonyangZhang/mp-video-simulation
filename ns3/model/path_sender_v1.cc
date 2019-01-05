@@ -4,34 +4,44 @@
 #include "net/third_party/quic/platform/api/quic_endian.h"
 #include "net/third_party/quic/core/quic_data_reader.h"
 #include "net/third_party/quic/core/quic_data_writer.h"
+#include "net/my_bbr_sender.h"
 #include "net/my_quic_header.h"
 #include "ns3/ns_quic_time.h"
+#include "ns3/bbr_sender_v1.h"
 #define MAX_BUF_SIZE 1400
 #define PADDING_SIZE 1000
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
 //insist factor 0.6 
 //and disable congestion backoff mode
+//change  updatagianphase
+// close loss backoff
+const uint32_t max_pacer_queue_delay=100;
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("PathSenderV1");
-const int smooth_rate_num=90;
+const int smooth_rate_num=80;
 const int smooth_rate_den=100;
 PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
 :min_bps_(min_bps)
-,max_bps_(max_bps)
-,cc_(min_bps,this){
+,max_bps_(max_bps){
 //why
+    cc_=new quic::MyBbrSenderV1(min_bps,this);
     quic::QuicBandwidth bw=quic::QuicBandwidth::FromBitsPerSecond(max_bps_);
-	pacer_.set_sender(&cc_);
+	pacer_.set_sender(cc_);
     //pacer_.set_max_bps(2000000);
-   // pacer_.set_max_pacing_rate(bw);
+    pacer_.set_max_pacing_rate(bw);
 	bps_=500000;
+}
+PathSenderV1::~PathSenderV1(){
+    delete cc_;
 }
 void PathSenderV1::HeartBeat(){
 	if(heart_timer_.IsExpired()){
-		ProcessVideoPacket();
         uint32_t now=Simulator::Now().GetMilliSeconds();
+		//CheckQueueExceed(now);
+		ProcessVideoPacket();
+        //SendFakePacket();//for test
         RecordRate(now);
-        //UpdateRate(now);
+        UpdateRate(now);
 		Time next=MilliSeconds(heart_beat_t_);
 		heart_timer_=Simulator::Schedule(next,
 				&PathSenderV1::HeartBeat,this);
@@ -45,6 +55,7 @@ void PathSenderV1::ConfigureFps(uint32_t fps){
 void PathSenderV1::OnVideoPacket(uint32_t packet_id,
 		std::shared_ptr<zsy::VideoPacketWrapper>packet,
 		bool is_retrans){
+    //return;
 	uint32_t now=Simulator::Now().GetMilliSeconds();
 	packet->set_enqueue_time(now);
 	if(!is_retrans){
@@ -92,13 +103,13 @@ void PathSenderV1::ConfigurePeer(Ipv4Address addr,uint16_t port){
 }
 void PathSenderV1::OnBandwidthUpdate(){
 		int64_t bw=0;
-		bw=cc_.GetReferenceRate().ToKBitsPerSecond()*1000;
+		bw=cc_->GetReferenceRate().ToKBitsPerSecond()*1000;
 		if(bw<min_bps_){
 			bw=min_bps_;
 		}
-        bps_=bw;
-		//bps_=(smooth_rate_num*bw+(smooth_rate_den
-		//		-smooth_rate_num)*bps_)/smooth_rate_den;
+        //bps_=bw;
+		bps_=(smooth_rate_num*bw+(smooth_rate_den
+				-smooth_rate_num)*bps_)/smooth_rate_den;
         //NS_LOG_INFO("refer "<<bps_);
         if(mpsender_){
             mpsender_->OnRateUpdate();
@@ -131,7 +142,7 @@ void PathSenderV1::ProcessVideoPacket(){
 			SendStreamPacket(quic_now,false);
 			return;
 		}
-        /*if(cc_.ShouldSendProbePacket())*/{
+        if(cc_->ShouldSendProbePacket()){
             SendPaddingPacket(quic_now);
         }
 	}
@@ -181,6 +192,12 @@ void PathSenderV1::OnIncomingMessage(uint8_t *buf,uint32_t len){
 		reader.ReadBytesToUInt64(header.seq_len,&num);
 		OnAck(num);
 	}
+}
+void PathSenderV1::SendFakePacket(){
+ 	quic::QuicTime quic_now=Ns3QuicTime::Now();
+	if(pacer_.TimeUntilSend(quic_now)==quic::QuicTime::Delta::Zero()){
+        SendPaddingPacket(quic_now);
+    }   
 }
 void PathSenderV1::SendPaddingPacket(quic::QuicTime quic_now){
 	char buf[MAX_BUF_SIZE]={0};
@@ -267,7 +284,7 @@ void PathSenderV1::RecordRate(uint32_t now){
 		}
 		if(now>=rate_out_next_){
 			int64_t bw=0;
-			bw=cc_.GetReferenceRate().ToKBitsPerSecond()*1000;
+			bw=cc_->GetReferenceRate().ToKBitsPerSecond()*1000;
             //NS_LOG_INFO("rate "<<bw);
 			trace_rate_cb_(bw);
 			rate_out_next_=now+100;
@@ -282,7 +299,7 @@ void PathSenderV1::UpdateRate(uint32_t now){
 	}
 	if(now>=rate_update_next_){
 		int64_t bw=0;
-		bw=cc_.GetReferenceRate().ToKBitsPerSecond()*1000;
+		bw=cc_->GetReferenceRate().ToKBitsPerSecond()*1000;
 		if(bw<min_bps_){
 			bw=min_bps_;
 		}
@@ -345,5 +362,65 @@ void PathSenderV1::RemoveSeqIdMapLe(uint64_t seq){
 			break;
 		}
 	}
+}
+void PathSenderV1::CheckQueueExceed(uint32_t now){
+	while(!resending_queue_.empty()){
+		auto it=resending_queue_.begin();
+		std::shared_ptr<zsy::VideoPacketWrapper> packet=(*it);
+		uint32_t queue_delay=packet->get_queue_delay(now);
+		if(queue_delay>max_pacer_queue_delay){
+			SendPacketWithoutCongestion(packet,now);
+			resending_queue_.erase(it);
+		}else{
+			break;
+		}
+	}
+	while(!sending_queue_.empty()){
+		auto it=sending_queue_.begin();
+		std::shared_ptr<zsy::VideoPacketWrapper> packet=(*it);
+		uint32_t queue_delay=packet->get_queue_delay(now);
+		if(queue_delay>max_pacer_queue_delay){
+			SendPacketWithoutCongestion(packet,now);
+			sending_queue_.erase(it);
+		}else{
+			break;
+		}
+	}
+}
+void PathSenderV1::SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketWrapper>packet,
+		uint32_t ns_now){
+	char buf[MAX_BUF_SIZE]={0};
+	char seg_buf[MAX_BUF_SIZE];
+	quic::my_quic_header_t header;
+	header.seq=seq_;
+	header.seq_len=quic::GetMinSeqLength(header.seq);
+	uint8_t public_flags=0;
+	public_flags |= quic::GetPacketNumberFlags(header.seq_len)
+                  << kPublicHeaderSequenceNumberShift;
+
+	quic::QuicDataWriter writer(MAX_BUF_SIZE, buf, quic::NETWORK_BYTE_ORDER);
+	uint8_t type=zsy::Video_Proto_V1::v1_stream;
+	public_flags|=type;
+	writer.WriteBytes(&public_flags,1);
+	writer.WriteBytesToUInt64(header.seq_len,header.seq);
+	seq_++;
+	int payload_size=0;
+	uint32_t video_size=0;
+	uint32_t packet_id=0;
+	packet_id=packet->get_packet_id();
+	video_size=packet->video_size();
+	payload_size=packet->Serialize((uint8_t*)seg_buf,MAX_BUF_SIZE,ns_now);
+	uint32_t time_offset=packet->get_time_offset();
+	if(!trace_time_offset_cb_.IsNull()){
+		trace_time_offset_cb_(packet_id,time_offset);
+	}
+	assert(payload_size!=-1);
+	pending_bytes_-=payload_size;
+	writer.WriteBytes(seg_buf,payload_size);
+	uint32_t length=writer.length();
+	Ptr<Packet> p=Create<Packet>((uint8_t*)buf,length);
+	SendToNetwork(p);
+	seq_delay_map_.insert(std::make_pair(header.seq,ns_now));
+	seq_id_map_.insert(std::make_pair(header.seq,packet_id));
 }
 }
