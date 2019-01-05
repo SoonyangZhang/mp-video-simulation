@@ -121,6 +121,7 @@ private:
     uint32_t pending_bytes_{0};
     int64_t bps_{0};
     uint32_t rate_update_next_{0};
+    uint32_t over_offset_ts_{0};
 };
 }
 

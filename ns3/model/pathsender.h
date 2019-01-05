@@ -25,7 +25,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/event-id.h"
 #include "ns3/processmodule.h"
-#include "ns3/proxyobserver.h"
+//#include "ns3/proxyobserver.h"
 #include "ns3/mpvideoheader.h"
 #include "ns3/simulationclock.h"
 #include "ns3/callback.h"

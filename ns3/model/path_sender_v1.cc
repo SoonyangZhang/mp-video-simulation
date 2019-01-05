@@ -9,7 +9,7 @@
 #include "ns3/ns_quic_time.h"
 #include "ns3/bbr_sender_v1.h"
 #define MAX_BUF_SIZE 1400
-#define PADDING_SIZE 1000
+#define PADDING_SIZE 500
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
 //insist factor 0.6 
 //and disable congestion backoff mode
@@ -41,7 +41,7 @@ void PathSenderV1::HeartBeat(){
 		ProcessVideoPacket();
         //SendFakePacket();//for test
         RecordRate(now);
-        UpdateRate(now);
+        //UpdateRate(now);
 		Time next=MilliSeconds(heart_beat_t_);
 		heart_timer_=Simulator::Schedule(next,
 				&PathSenderV1::HeartBeat,this);
@@ -104,12 +104,13 @@ void PathSenderV1::ConfigurePeer(Ipv4Address addr,uint16_t port){
 void PathSenderV1::OnBandwidthUpdate(){
 		int64_t bw=0;
 		bw=cc_->GetReferenceRate().ToKBitsPerSecond()*1000;
-		if(bw<min_bps_){
-			bw=min_bps_;
+        uint64_t protection_rate=bw*0.8;
+		if(protection_rate<min_bps_){
+			protection_rate=min_bps_;
 		}
-        //bps_=bw;
-		bps_=(smooth_rate_num*bw+(smooth_rate_den
-				-smooth_rate_num)*bps_)/smooth_rate_den;
+        bps_=protection_rate;
+		//bps_=(smooth_rate_num*bw+(smooth_rate_den
+		//		-smooth_rate_num)*bps_)/smooth_rate_den;
         //NS_LOG_INFO("refer "<<bps_);
         if(mpsender_){
             mpsender_->OnRateUpdate();
@@ -364,7 +365,33 @@ void PathSenderV1::RemoveSeqIdMapLe(uint64_t seq){
 	}
 }
 void PathSenderV1::CheckQueueExceed(uint32_t now){
-	while(!resending_queue_.empty()){
+	bool has_over_queue_packet_=false;
+	auto resending_queue_it=resending_queue_.begin();
+	if(resending_queue_it!=resending_queue_.end()){
+		std::shared_ptr<zsy::VideoPacketWrapper> packet=(*resending_queue_it);
+		uint32_t queue_delay=packet->get_queue_delay(now);
+		if(queue_delay>max_pacer_queue_delay){
+			has_over_queue_packet_=true;
+		}
+	}
+	auto sending_queue_it=sending_queue_.begin();
+	if(sending_queue_it!=sending_queue_.end()){
+		std::shared_ptr<zsy::VideoPacketWrapper> packet=(*sending_queue_it);
+		uint32_t queue_delay=packet->get_queue_delay(now);
+		if(queue_delay>max_pacer_queue_delay){
+			has_over_queue_packet_=true;
+		}
+	}
+	if(has_over_queue_packet_){
+		if(now-over_offset_ts_>cur_rtt_){
+			bps_=bps_*0.8;
+			over_offset_ts_=now;
+	        if(mpsender_){
+	            mpsender_->OnRateUpdate();
+	        }
+		}
+	}
+	/*while(!resending_queue_.empty()){
 		auto it=resending_queue_.begin();
 		std::shared_ptr<zsy::VideoPacketWrapper> packet=(*it);
 		uint32_t queue_delay=packet->get_queue_delay(now);
@@ -385,7 +412,7 @@ void PathSenderV1::CheckQueueExceed(uint32_t now){
 		}else{
 			break;
 		}
-	}
+	}*/
 }
 void PathSenderV1::SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketWrapper>packet,
 		uint32_t ns_now){

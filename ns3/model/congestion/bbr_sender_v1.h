@@ -104,6 +104,8 @@ private:
 	QuicTime::Delta	user_period_;
     bool change_state_probe_ab_bw_{false};
     bool change_state_probe_bw_insist_{false};
+    QuicBandwidth stable_rate_;
+    uint32_t ai_factor_{0};
 	MyQuicRandom *random_;
     BandwidthObserver *observer_{NULL};
 };

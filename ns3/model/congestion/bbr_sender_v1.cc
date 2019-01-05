@@ -36,7 +36,8 @@ MyBbrSenderV1::MyBbrSenderV1(uint64_t min_bps,BandwidthObserver *observer)
 ,sending_rate_(QuicBandwidth::FromBitsPerSecond(min_bps))
 ,recover_rate_(QuicBandwidth::Zero())
 ,last_target_rate_(QuicBandwidth::Zero())
-,user_period_(QuicTime::Delta::Zero()){
+,user_period_(QuicTime::Delta::Zero())
+,stable_rate_(QuicBandwidth::Zero()){
     random_=new MyQuicRandom();
     observer_=observer;
 }
@@ -64,10 +65,14 @@ QuicBandwidth MyBbrSenderV1::AverageBandwidthEstimate(){
 	return avergae_bandwidth_.GetBest();
 }
 bool MyBbrSenderV1::ShouldSendProbePacket(){
-	if(pacing_gain_<=1){
-		return false;
+    bool  ret=false;
+	if(pacing_gain_>1){
+        ret=true;
 	}
-	return true;
+    if(mode_==INSISIT_PHASE){   
+        ret=true;
+    }
+	return ret;
 }
 void MyBbrSenderV1::OnAck(QuicTime event_time,
 		QuicPacketNumber packet_number){
@@ -163,7 +168,7 @@ void MyBbrSenderV1::OnPacketSent(QuicTime event_time,
 		QuicByteCount bytes){
 	AddSeqAndTimestamp(event_time,packet_number);
     CalculatePacingRate();
-	if(mode_==PROBE_BW||mode_==PROBE_AB){
+	if(mode_==PROBE_BW||mode_==PROBE_AB||mode_==INSISIT_PHASE){
 		//UpdateGainCyclePhase(event_time);
 		AddPacketInfoSampler(event_time,packet_number,bytes);
 	}
@@ -176,6 +181,7 @@ QuicBandwidth acked_bw,bool is_probe){
 	if(mode_==PROBE_BW){
 	    if(sent_bw!=QuicBandwidth::Infinite()){
 	        //it seems the network is congestioned
+            max_bandwidth_.Update(bw,cluter_id);
 	        if(is_probe){
 	            send_bw=sent_bw*kBackoffGain;// 1/1.25
 	        }
@@ -183,13 +189,17 @@ QuicBandwidth acked_bw,bool is_probe){
 	            //std::cout<<"congstioned"<<std::endl;
 	            //bw=0.7*bw;//0.8
 	            bw=0.8*BandwidthEstimate();
+	            stable_rate_=bw;
+	            ai_factor_=0;
 	            max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
 	            max_rate_record_=bw;
 	            change_state_probe_bw_insist_=true;
 	        }
 	    }
+	max_bandwidth_.Update(bw,cluter_id);
 	}
 	if(mode_==PROBE_AB){
+	    max_bandwidth_.Update(bw,cluter_id);
 		QuicBandwidth current_bw=BandwidthEstimate();
 		if(is_probe&&current_bw!=QuicBandwidth::Zero()){
 			if(bw<=kExitFastProbeThreshold*current_bw){
@@ -197,15 +207,27 @@ QuicBandwidth acked_bw,bool is_probe){
 			}
 		}
 	}
+
 	if(mode_==INSISIT_PHASE){
-        if(send_bw*0.8>=acked_bw){
-            bw=0.9*BandwidthEstimate();
-            max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
-            max_rate_record_=bw;
-            //change_state_probe_bw_insist_=true;
+        max_bandwidth_.Update(bw,cluter_id);
+		QuicBandwidth best_bw=BandwidthEstimate();
+        if(send_bw*0.9>=acked_bw){
+            float num=acked_bw.ToKBitsPerSecond()*1000;
+            float den=send_bw.ToKBitsPerSecond()*1000;
+            float loss=num/den;
+            float back_off=0.8>loss?0.8:loss;
+            QuicBandwidth target=back_off*acked_bw;//*best_bw;
+            //bw=0.9*best_bw;
+            stable_rate_=target;
+            //max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+            //max_bandwidth_.Update(bw,cluter_id);
+           // max_rate_record_=bw;
+        }else{
+        	//if(best_bw>stable_rate_){
+        		stable_rate_=acked_bw;
+        	//}
         }
 	}
-	max_bandwidth_.Update(bw,cluter_id);
     if(is_recover_effective_){
         is_recover_effective_=false;
     }
@@ -296,6 +318,7 @@ void MyBbrSenderV1::UpdateGainCyclePhase(QuicTime now){
 		 }else if(mode_==PROBE_AB){
 			 pacing_gain_ = kPacingGain2[cycle_current_offset_];
 		 }else if(mode_==INSISIT_PHASE){
+			 ai_factor_++;
 			 pacing_gain_=1;
 		 }
 		 round_trip_count_++;
@@ -306,6 +329,7 @@ void MyBbrSenderV1::MaybeEnterOrExitProbeRtt(QuicTime now,
 	if (min_rtt_expired&&mode_ != PROBE_RTT) {
 		mode_ = PROBE_RTT;
 	    pacing_gain_ = 1;
+	    ai_factor_=0;
 	    // Do not decide on the time to exit PROBE_RTT until the |bytes_in_flight|
 	    // is at the target small value.
 	    exit_probe_rtt_at_ = QuicTime::Zero();
@@ -391,7 +415,7 @@ void MyBbrSenderV1::CalculatePacingRate(){
 		 pacing_rate_=pacing_gain_*target_rate;
 	}
     if(mode_==INSISIT_PHASE){
-    	target_rate=BandwidthEstimate();
+    	target_rate=stable_rate_;//BandwidthEstimate();
     	assert(target_rate!=QuicBandwidth::Zero());
     	uint64_t target_bps=target_rate.ToKBitsPerSecond()*1000+kStableBandWidthIncrease;
     	target_rate=QuicBandwidth::FromBitsPerSecond(target_bps);
