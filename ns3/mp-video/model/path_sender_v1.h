@@ -57,9 +57,20 @@ public:
 	uint64_t GetPendingLen(){
 		return pending_bytes_;
 	}
+	uint64_t get_queue_offset_(){
+		return queue_offset_;
+	}
 	uint64_t get_rate(){ return bps_;}
 	uint32_t get_rtt(){
 		return cur_rtt_;
+	}
+	uint64_t get_cost(){
+		uint32_t cost=0;
+		cost=queue_offset_;
+		float delay=((float)pending_bytes_*8*1000)/bps_;
+		cost+=delay;
+		cost+=cur_rtt_/2;
+		return cost;
 	}
 	int64_t get_first_ts(){
 		int64_t first_ts=-1;
@@ -88,6 +99,7 @@ private:
 	void CheckQueueExceed(uint32_t now);
 	void SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketWrapper>packet,
 			uint32_t ns_now);
+	void UpdateQueueOffset();
 	uint32_t min_bps_;
 	uint32_t max_bps_;
 	bool first_packet_{true};
@@ -122,6 +134,7 @@ private:
     int64_t bps_{0};
     uint32_t rate_update_next_{0};
     uint32_t over_offset_ts_{0};
+    uint64_t queue_offset_{0};
 };
 }
 

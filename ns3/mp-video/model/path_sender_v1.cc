@@ -20,6 +20,8 @@ namespace ns3{
 NS_LOG_COMPONENT_DEFINE("PathSenderV1");
 const int smooth_rate_num=80;
 const int smooth_rate_den=100;
+const int smooth_offset_num=90;
+const int smooth_offset_den=100;
 PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
 :min_bps_(min_bps)
 ,max_bps_(max_bps){
@@ -28,7 +30,7 @@ PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
     quic::QuicBandwidth bw=quic::QuicBandwidth::FromBitsPerSecond(max_bps_);
 	pacer_.set_sender(cc_);
     //pacer_.set_max_bps(2000000);
-    pacer_.set_max_pacing_rate(bw);
+    //pacer_.set_max_pacing_rate(bw);
 	bps_=500000;
 }
 PathSenderV1::~PathSenderV1(){
@@ -38,6 +40,7 @@ void PathSenderV1::HeartBeat(){
 	if(heart_timer_.IsExpired()){
         uint32_t now=Simulator::Now().GetMilliSeconds();
 		//CheckQueueExceed(now);
+        UpdateQueueOffset();
 		ProcessVideoPacket();
         //SendFakePacket();//for test
         RecordRate(now);
@@ -251,6 +254,8 @@ void PathSenderV1::SendStreamPacket(quic::QuicTime quic_now,bool is_retrans){
 		video_size=packet->video_size();
 		payload_size=packet->Serialize((uint8_t*)seg_buf,MAX_BUF_SIZE,ns_now);
 		uint32_t time_offset=packet->get_time_offset();
+		float tmp_offset=((float)(queue_offset_*(smooth_offset_den-smooth_offset_num)+smooth_offset_num*time_offset))/smooth_offset_den;
+		queue_offset_=tmp_offset;
 		resending_queue_.erase(resend_it);
 		if(!trace_time_offset_cb_.IsNull()){
 			trace_time_offset_cb_(packet_id,time_offset);
@@ -262,6 +267,8 @@ void PathSenderV1::SendStreamPacket(quic::QuicTime quic_now,bool is_retrans){
 		video_size=packet->video_size();
 		payload_size=packet->Serialize((uint8_t*)seg_buf,MAX_BUF_SIZE,ns_now);
 		uint32_t time_offset=packet->get_time_offset();
+		float tmp_offset=((float)(queue_offset_*(smooth_offset_den-smooth_offset_num)+smooth_offset_num*time_offset))/smooth_offset_den;
+		queue_offset_=tmp_offset;
 		sending_queue_.erase(send_it);
 		if(!trace_time_offset_cb_.IsNull()){
 			trace_time_offset_cb_(packet_id,time_offset);
@@ -449,5 +456,10 @@ void PathSenderV1::SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketW
 	SendToNetwork(p);
 	seq_delay_map_.insert(std::make_pair(header.seq,ns_now));
 	seq_id_map_.insert(std::make_pair(header.seq,packet_id));
+}
+void PathSenderV1::UpdateQueueOffset(){
+	if(resending_queue_.empty()&&sending_queue_.empty()){
+		queue_offset_=0;
+	}
 }
 }

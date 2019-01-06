@@ -108,9 +108,10 @@ void TraceReceiverV1::OpenTraceRecvFrameFile(std::string filename){
 }
 void TraceReceiverV1::OnRecvFrame(uint32_t fid,uint32_t delay,uint8_t received,uint8_t total){
 	if(m_recvFrame.is_open()){
+        float now=Simulator::Now().GetSeconds();
 		char line [256];
 		memset(line,0,256);
-		sprintf(line, "%d %16d %16d %16d",fid,delay,received,total);
+		sprintf(line, "%f %16d %16d %16d %16d",now,fid,delay,received,total);
 		m_recvFrame<<line<<std::endl;
 	}
 }

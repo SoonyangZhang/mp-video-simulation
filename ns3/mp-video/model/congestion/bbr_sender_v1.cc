@@ -216,11 +216,11 @@ QuicBandwidth acked_bw,bool is_probe){
             float den=send_bw.ToKBitsPerSecond()*1000;
             float loss=num/den;
             float back_off=0.8>loss?0.8:loss;
-            QuicBandwidth target=back_off*acked_bw;//*best_bw;
+            QuicBandwidth target=back_off*acked_bw;//best_bw;//affect fairness
             //bw=0.9*best_bw;
             stable_rate_=target;
-            //max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
-            //max_bandwidth_.Update(bw,cluter_id);
+            max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+            max_bandwidth_.Update(target,cluter_id);
            // max_rate_record_=bw;
         }else{
         	//if(best_bw>stable_rate_){
