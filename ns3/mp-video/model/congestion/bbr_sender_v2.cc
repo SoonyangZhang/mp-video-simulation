@@ -2,6 +2,26 @@
 #include <iostream>
 #include <assert.h>
 namespace quic{
+template<typename T>
+T Max(const T &a,const T&b){
+    T ret;
+    if(a>b){
+        ret=a;
+    }else{
+        ret=b;
+    }
+    return ret;
+}
+template<typename T>
+T Min(const T &a,const T&b){
+    T ret;
+    if(a>b){
+        ret=b;
+    }else{
+        ret=a;
+    }
+    return ret;
+}
 MySampler::MySampler()
 :total_bytes_sent_(0)
 ,total_bytes_acked_(0)
@@ -115,7 +135,7 @@ const float kDecreaseGain=0.75;
 const float kStartupGrowthTarget = 1.25;
 const int64_t kRoundTripsWithoutGrowthBeforeExitingStartup = 3;
 const float kBandwidthLossFactor=0.9;
-const int64_t kContinuousBandwidthLoss=3;
+const int64_t kContinuousBandwidthLoss=1;
 const float kSimilarMinRttThreshold = 1.125;
 const uint64_t kBandwidthWindowSize=10;
 const uint32_t kInitialCongestionWindowPackets = 10;
@@ -125,7 +145,8 @@ const QuicTime::Delta kMinRttExpiry = QuicTime::Delta::FromSeconds(10);
 // in compatible with traditional tcp,
 //cwnd increase 1 every rtt.
 const uint32_t kPacketIncreaseSize=1000;
-const float kCongestionBackoff=0.8;
+const uint32_t kBandWidthIncrease=5000;
+const float kCongestionBackoff=0.7;
 const float kSelfInflictQueueBackoff=0.9;
 MyBbrSenderV2::MyBbrSenderV2(uint64_t min_bps,BandwidthObserver *observer)
 :min_bw_(QuicBandwidth::FromBitsPerSecond(min_bps))
@@ -212,13 +233,13 @@ void MyBbrSenderV2::OnAck(QuicTime event_time,
 	MaybeExitStartupOrDrain(event_time);
 	bool min_rtt_expired=false;
 	min_rtt_expired=event_time>(min_rtt_timestamp_ + kMinRttExpiry);
+    bool is_congested=false;
 	if(mode_==ST_INCREASE){
-		bool is_congested=false;
 		if(is_round_update){
 			is_congested=CheckIfCongestion(bw,current_round);
 		}
-		MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
 	}
+    MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
 	CalculatePacingRate();
 }
 void MyBbrSenderV2::EnterStartUpMode(){
@@ -243,16 +264,21 @@ bool MyBbrSenderV2::CheckIfCongestion(QuicBandwidth instant_bw,int64_t round){
 	if(max_bw_in_increase_==QuicBandwidth::Zero()){
 		return congestioned;
 	}
-	if(instant_bw<kBandwidthLossFactor*max_bw_in_increase_){
+	if(instant_bw<=kBandwidthLossFactor*max_bw_in_increase_){
 		if(congestion_start_round_==0){
 			congestion_start_round_=round;
 			congestion_round_count_=round;
 		}else{
 			if(round==congestion_round_count_+1){
 				congestion_round_count_=round;
+                float num=instant_bw.ToKBitsPerSecond()*1000;
+                float den=max_bw_in_increase_.ToKBitsPerSecond()*1000;
+                float factor=num/den;
+                dynamic_congestion_back_off_=Max(factor,dynamic_congestion_back_off_);
 			}else{
 				congestion_start_round_=0;
 				congestion_round_count_=0;
+                dynamic_congestion_back_off_=0.0;
 			}
 			if(congestion_start_round_!=0){
 				if(congestion_round_count_-congestion_start_round_>=kContinuousBandwidthLoss){
@@ -283,8 +309,10 @@ void MyBbrSenderV2::EnterIncreaseMode(QuicTime now){
 }
 void MyBbrSenderV2::MaybeEnterOrExitDecrease(QuicTime now,
                               bool min_rtt_expired,bool is_congested,int64_t round){
-	if((mode_!=ST_DECREASE&&min_rtt_expired)||is_congested){
-		pacing_gain_ =kDecreaseGain;
+	if(mode_!=ST_DECREASE&&(min_rtt_expired||is_congested)){
+		//pacing_gain_ =kDecreaseGain;
+        //in dynamic way
+        pacing_gain_=Max(kDecreaseGain,dynamic_congestion_back_off_);
 		mode_=ST_DECREASE;
 		min_rtt_record_=min_rtt_;
 		exit_probe_rtt_at_ = QuicTime::Zero();
@@ -292,10 +320,13 @@ void MyBbrSenderV2::MaybeEnterOrExitDecrease(QuicTime now,
 		QuicBandwidth target=QuicBandwidth::Zero();
 		max_bw_in_increase_=QuicBandwidth::Zero();
 		if(is_congested){
-			target=best*kCongestionBackoff;
+			//target=best*kCongestionBackoff;
+            float backoff=Max((float)0.5,dynamic_congestion_back_off_);
+            target=best*backoff;
 		}else{
 			target=best*kSelfInflictQueueBackoff;
 		}
+        dynamic_congestion_back_off_=0.0;
 		max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
 		max_bandwidth_.Update(target,round);
 	}
@@ -307,7 +338,7 @@ void MyBbrSenderV2::MaybeEnterOrExitDecrease(QuicTime now,
 		if(bytes_in_flight_<=GetTargetInflightInDecrease(1.0)){
 			excess_drained=true;
 		}
-		if(now-exit_probe_rtt_at_>4*min_rtt_record_||excess_drained){
+		if(/*((now-exit_probe_rtt_at_)>4*min_rtt_record_)||*/excess_drained){
 			if(min_rtt_in_decrease_==QuicTime::Delta::Infinite()){
 				min_rtt_=min_rtt_record_;
 				min_rtt_timestamp_=now;
@@ -315,6 +346,8 @@ void MyBbrSenderV2::MaybeEnterOrExitDecrease(QuicTime now,
 				min_rtt_=min_rtt_in_decrease_;
 				min_rtt_timestamp_=min_rtt_timestamp_in_decrease_;
 			}
+			//std::string info=std::string("I-d");
+			//PrintDebugInfo(1000,info);
 			EnterIncreaseMode(now);
 		}
 	}
@@ -356,9 +389,15 @@ void MyBbrSenderV2::CalculatePacingRate(){
 		uint64_t rtt=GetMinRtt().ToMilliseconds();
 		uint64_t increase_bps=kPacketIncreaseSize*1000*8/rtt;
 		uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+increase_bps;
+        //uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
 		pacing_rate_=QuicBandwidth::FromBitsPerSecond(bps);
 	}
 	if(pacing_rate_!=last_rate){
+		std::string state=GetStateString();
+		uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000;
+		if(!trace_state_cb_.IsNull()){
+			trace_state_cb_(bps,state);
+		}
 		if(observer_){
 			observer_->OnBandwidthUpdate();
 		}
@@ -416,6 +455,26 @@ void MyBbrSenderV2::UpdateMaxBw(){
 	QuicBandwidth bw=BandwidthEstimate();
 	if(bw>max_bw_in_increase_){
 		max_bw_in_increase_=bw;
+	}
+}
+std::string MyBbrSenderV2::GetStateString(){
+	if(mode_==ST_START){
+		return std::string("start");
+	}
+	if(mode_==ST_DRAIN){
+		return std::string("drain");
+	}
+	if(mode_==ST_INCREASE){
+		return std::string("increase");
+	}
+	if(mode_==ST_DECREASE){
+		return std::string("decrease");
+	}
+    return std::string("null");
+}
+void MyBbrSenderV2::PrintDebugInfo(uint64_t bps,std::string state){
+	if(!trace_state_cb_.IsNull()){
+		trace_state_cb_(bps,state);
 	}
 }
 }

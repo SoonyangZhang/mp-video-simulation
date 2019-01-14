@@ -13,6 +13,8 @@
 #include <vector>
 #include <list>
 #include <memory>
+#include <string>
+#include "ns3/callback.h"
 namespace quic{
 class MySampler{
 public:
@@ -131,6 +133,12 @@ public:
 QuicBandwidth acked_bw,bool is_probe) override{
 
 	}
+	typedef ns3::Callback<void,uint64_t,std::string> TraceState;
+	void SetStateTraceFunc(TraceState cb){
+		trace_state_cb_=cb;
+	}
+private:
+	TraceState trace_state_cb_;
 private:
 	struct PerPacket{
 		QuicTime sent_ts;
@@ -161,6 +169,8 @@ private:
 	void UpdateRttAndInflight(QuicTime now,
 			QuicPacketNumber packet_number);
 	void UpdateMaxBw();
+	std::string GetStateString();
+	void PrintDebugInfo(uint64_t bps,std::string state);
 	QuicBandwidth min_bw_;
 	BandwidthObserver *observer_{NULL};
 	Mode mode_{ST_START};
@@ -201,6 +211,7 @@ private:
 	QuicByteCount bytes_in_flight_{0};
 	// The initial value of the |congestion_window_|.
 	QuicByteCount initial_congestion_window_;
+    float dynamic_congestion_back_off_{0.0};
 	MySampler sampler_;
 };
 }

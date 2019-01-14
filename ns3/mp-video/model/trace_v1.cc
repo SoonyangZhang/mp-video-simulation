@@ -123,6 +123,35 @@ void TraceReceiverV1::CloseRecvFrameFile(){
 		m_recvFrame.close();
 	}
 }
+TraceState::TraceState(){}
+TraceState::~TraceState(){
+	Close();
+}
+void TraceState::OpenTraceStateFile(std::string filename){
+	char buf[FILENAME_MAX];
+	memset(buf,0,FILENAME_MAX);
+	std::string path = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
+			+ filename+"-state.txt";
+	m_state.open(path.c_str(), std::fstream::out);
+}
+void TraceState::OnNewState(uint64_t bps,std::string state){
+	if(m_state.is_open()){
+        float now=Simulator::Now().GetSeconds();
+        float rate=(float)(bps)/1000;
+		char line [256];
+		memset(line,0,256);
+		sprintf(line, "%f %16f %s",now,rate,state.c_str());
+		m_state<<line<<std::endl;
+	}
+}
+void TraceState::Close(){
+	CloseStateFile();
+}
+void TraceState::CloseStateFile(){
+	if(m_state.is_open()){
+		m_state.close();
+	}
+}
 }
 
 

@@ -13,10 +13,15 @@
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("MockSender");
-MockSender::MockSender(uint32_t min_bps,uint32_t max_bps)
+MockSender::MockSender(uint32_t min_bps,uint32_t max_bps,int instance)
 :min_bps_(min_bps)
 ,max_bps_(max_bps){
-	cc_=new quic::MyBbrSenderV2(min_bps,this);
+    quic::MyBbrSenderV2 *child_cc=new quic::MyBbrSenderV2(min_bps,this);
+	cc_=child_cc;
+    std::string test_case=std::to_string(instance);
+    std::string log=std::string("bbr-aimd-")+test_case;
+    tracer_.OpenTraceStateFile(log);
+    child_cc->SetStateTraceFunc(MakeCallback(&TraceState::OnNewState,&tracer_));
 	pacer_.set_sender(cc_);
 	bps_=500000;
 }

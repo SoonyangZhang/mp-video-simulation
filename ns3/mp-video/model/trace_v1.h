@@ -38,5 +38,16 @@ private:
 	void CloseRecvFrameFile();
 	std::fstream m_recvFrame;
 };
+class TraceState{
+public:
+	TraceState();
+	~TraceState();
+	void OpenTraceStateFile(std::string filename);
+	void OnNewState(uint64_t bps,std::string state);
+private:
+	void Close();
+	void CloseStateFile();
+	std::fstream m_state;
+};
 }
 #endif /* NS3_MPVIDEO_TRACE_V1_H_ */

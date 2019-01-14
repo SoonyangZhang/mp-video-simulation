@@ -15,11 +15,12 @@
 #include "net/my_controller_interface.h"
 #include "ns3/idealpacer.h"
 #include "idealcc.h"
+#include "ns3/trace_v1.h"
 namespace ns3{
 class MockSender:public Application,
 public quic::BandwidthObserver{
 public:
-	MockSender(uint32_t min_bps,uint32_t max_bps);
+	MockSender(uint32_t min_bps,uint32_t max_bps,int instance);
 	~MockSender();
 	void HeartBeat();
 	void OnAck(uint64_t seq);
@@ -68,6 +69,7 @@ private:
     quic::CongestionController *cc_{NULL};
     uint32_t cur_rtt_{0};
     std::map<uint64_t,int32_t> seq_delay_map_;
+    TraceState tracer_;
 };
 }
 #endif /* NS3_MPVIDEO_MOCK_SENDER_H_ */
