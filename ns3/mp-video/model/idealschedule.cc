@@ -17,7 +17,7 @@ void IdealSchedule::IncomingPackets(std::map<uint32_t,uint32_t>&packets,
 			uint8_t path_id=(*it);
 			Ptr<PathSenderV1> path=sender_->GetPathInfo(path_id);
 	        uint32_t rate=0;
-            rate=path->get_rate();
+            rate=path->get_srate();
 			if(rate!=0){
 			totalrate+=rate;
 			pathrate.insert(std::make_pair(path_id,rate));

@@ -65,7 +65,7 @@ void EDCLDScheduleV1::GetUsablePath(std::map<uint8_t,uint32_t>&usable_path,uint3
 	for(auto it=pids_.begin();it!=pids_.end();it++){
 		uint8_t pid=(*it);
 		Ptr<PathSenderV1> subpath=sender_->GetPathInfo(pid);
-		uint32_t rate=subpath->get_rate();
+		uint32_t rate=subpath->GetIntantRate();
 		if(rate!=0){
 			total_rate+=rate;
 			usable_path.insert(std::make_pair(pid,rate));

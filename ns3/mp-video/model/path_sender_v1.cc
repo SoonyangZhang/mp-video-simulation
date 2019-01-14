@@ -18,10 +18,12 @@ const uint8_t kPublicHeaderSequenceNumberShift = 4;
 const uint32_t max_pacer_queue_delay=100;
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("PathSenderV1");
-const int smooth_rate_num=80;
+const int smooth_rate_num=90;
 const int smooth_rate_den=100;
 const int smooth_offset_num=90;
 const int smooth_offset_den=100;
+const int smooth_delay_num=85;
+const int smooth_delay_den=100;
 PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
 :min_bps_(min_bps)
 ,max_bps_(max_bps){
@@ -32,6 +34,7 @@ PathSenderV1::PathSenderV1(uint32_t min_bps,uint32_t max_bps)
     //pacer_.set_max_bps(2000000);
     //pacer_.set_max_pacing_rate(bw);
 	bps_=500000;
+    s_bps_=500000;
 }
 PathSenderV1::~PathSenderV1(){
     delete cc_;
@@ -67,12 +70,12 @@ void PathSenderV1::OnVideoPacket(uint32_t packet_id,
 		resending_queue_.push_back(packet);
 	}
 	pending_bytes_+=packet->get_payload_size();
-	/*auto id_delay_it=id_delay_map.find(packet_id);
+	auto id_delay_it=id_delay_map.find(packet_id);
 	if(id_delay_it==id_delay_map.end()){
-		//id_delay_map.insert(std::make_pair(packet_id,now));
+		id_delay_map.insert(std::make_pair(packet_id,now));
 	}else{
 		//may not update the time stamp
-	}*/
+	}
 	if(first_packet_){
 		first_packet_=false;
 		//heart_timer_=Simulator::ScheduleNow(&PathSenderV1::HeartBeat,this);
@@ -107,14 +110,15 @@ void PathSenderV1::ConfigurePeer(Ipv4Address addr,uint16_t port){
 void PathSenderV1::OnBandwidthUpdate(){
 		int64_t bw=0;
 		bw=cc_->GetReferenceRate().ToKBitsPerSecond()*1000;
-        uint64_t protection_rate=bw*0.8;
+        //bps_=protection_rate;
+        s_bps_=bw;
+		//s_bps_=(smooth_rate_num*bw+(smooth_rate_den
+		//		-smooth_rate_num)*s_bps_)/smooth_rate_den;
+        uint64_t protection_rate=s_bps_*0.8;
 		if(protection_rate<min_bps_){
 			protection_rate=min_bps_;
 		}
         bps_=protection_rate;
-		//bps_=(smooth_rate_num*bw+(smooth_rate_den
-		//		-smooth_rate_num)*bps_)/smooth_rate_den;
-        //NS_LOG_INFO("refer "<<bps_);
         if(mpsender_){
             mpsender_->OnRateUpdate();
         }    
@@ -327,7 +331,25 @@ void  PathSenderV1::UpdateRtt(uint64_t seq){
 	if(it!=seq_delay_map_.end()){
 		cur_rtt_=ns_now-it->second;
 	}
+	auto seq_id_it=seq_id_map_.find(seq);
+	if(seq_id_it!=seq_id_map_.end()){
+		uint32_t packet_id=seq_id_it->second;
+		auto id_delay_it=id_delay_map.find(packet_id);
+		if(id_delay_it!=id_delay_map.end()){
+			uint32_t temp_delay=ns_now-id_delay_it->second;
+			UpdateAggregeteDelay(temp_delay);
+			RemoveIdDelayMapLe(packet_id);
+		}
+	}
 	RemoveSeqDelayMapLe(seq);
+}
+void PathSenderV1::UpdateAggregeteDelay(uint32_t delay){
+	if(aggregate_delay_==0){
+		aggregate_delay_=delay;
+	}else{
+		aggregate_delay_=((smooth_delay_den-smooth_delay_num)*aggregate_delay_
+				+smooth_delay_num*delay)/smooth_delay_den;
+	}
 }
 void PathSenderV1::DetectLoss(uint64_t seq){
 	if(seq>=recv_seq_+1){
@@ -351,7 +373,7 @@ void PathSenderV1::DetectLoss(uint64_t seq){
 	}
 	RemoveSeqIdMapLe(seq);
 }
-void PathSenderV1::RemoveSeqDelayMapLe(uint64_t seq){
+void PathSenderV1::RemoveSeqIdMapLe(uint64_t seq){
 	while(!seq_id_map_.empty()){
 		auto it=seq_id_map_.begin();
 		if(it->first<=seq){
@@ -361,11 +383,21 @@ void PathSenderV1::RemoveSeqDelayMapLe(uint64_t seq){
 		}
 	}
 }
-void PathSenderV1::RemoveSeqIdMapLe(uint64_t seq){
+void PathSenderV1::RemoveSeqDelayMapLe(uint64_t seq){
 	while(!seq_delay_map_.empty()){
 		auto it=seq_delay_map_.begin();
 		if(it->first<=seq){
 			seq_delay_map_.erase(it);
+		}else{
+			break;
+		}
+	}
+}
+void PathSenderV1::RemoveIdDelayMapLe(uint32_t packet_id){
+	while(!id_delay_map.empty()){
+		auto it=id_delay_map.begin();
+		if(it->first<=packet_id){
+			id_delay_map.erase(it);
 		}else{
 			break;
 		}

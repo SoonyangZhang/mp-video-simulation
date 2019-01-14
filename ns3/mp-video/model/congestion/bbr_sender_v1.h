@@ -108,6 +108,7 @@ private:
     uint32_t ai_factor_{0};
 	MyQuicRandom *random_;
     BandwidthObserver *observer_{NULL};
+    uint64_t back_off_id_{0};
 };
 }
 #endif /* NS3_MPVIDEO_CONGESTION_BBR_SENDER_V1_H_ */

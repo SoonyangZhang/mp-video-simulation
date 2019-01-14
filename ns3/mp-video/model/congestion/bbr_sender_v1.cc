@@ -19,6 +19,7 @@ const QuicTime::Delta kProbeRttTime = QuicTime::Delta::FromMilliseconds(200);
 const float kSimilarMinRttThreshold = 1.125;
 //10 cluster;
 const uint64_t kAverageAckRateWindowSize=10;
+const uint64_t kBackoffEffectiveWindow=5;
 }
 //delete useless code
 MyBbrSenderV1::MyBbrSenderV1(uint64_t min_bps,BandwidthObserver *observer)
@@ -178,12 +179,15 @@ QuicBandwidth acked_bw,bool is_probe){
     QuicBandwidth bw=std::min(sent_bw,acked_bw);
     QuicBandwidth send_bw=sent_bw;
 	acked_clusters_.push_back(cluster);
+    if(bw>max_rate_record_){
+        max_rate_record_=bw;
+    }
 	if(mode_==PROBE_BW){
 	    if(sent_bw!=QuicBandwidth::Infinite()){
 	        //it seems the network is congestioned
             max_bandwidth_.Update(bw,cluter_id);
 	        if(is_probe){
-	            send_bw=sent_bw*kBackoffGain;// 1/1.25
+	            //send_bw=sent_bw*kBackoffGain;// 1/1.25
 	        }
 	        if(send_bw*0.9>=acked_bw){
 	            //std::cout<<"congstioned"<<std::endl;
@@ -192,47 +196,60 @@ QuicBandwidth acked_bw,bool is_probe){
 	            stable_rate_=bw;
 	            ai_factor_=0;
 	            max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+                max_bandwidth_.Update(bw,cluter_id);
 	            max_rate_record_=bw;
 	            change_state_probe_bw_insist_=true;
+                
 	        }
 	    }
-	max_bandwidth_.Update(bw,cluter_id);
 	}
 	if(mode_==PROBE_AB){
-	    max_bandwidth_.Update(bw,cluter_id);
 		QuicBandwidth current_bw=BandwidthEstimate();
 		if(is_probe&&current_bw!=QuicBandwidth::Zero()){
 			if(bw<=kExitFastProbeThreshold*current_bw){
 				change_state_probe_ab_bw_=true;
 			}
 		}
+        max_bandwidth_.Update(bw,cluter_id);
 	}
 
 	if(mode_==INSISIT_PHASE){
-        max_bandwidth_.Update(bw,cluter_id);
 		QuicBandwidth best_bw=BandwidthEstimate();
+        //stable_rate_=BandwidthEstimate();
         if(send_bw*0.9>=acked_bw){
             float num=acked_bw.ToKBitsPerSecond()*1000;
             float den=send_bw.ToKBitsPerSecond()*1000;
             float loss=num/den;
             float back_off=0.8>loss?0.8:loss;
-            QuicBandwidth target=back_off*acked_bw;//best_bw;//affect fairness
+            max_bandwidth_.Update(bw,cluter_id);
+            QuicBandwidth target=back_off*best_bw;//back_off*acked_bw;//best_bw;//affect fairness
             //bw=0.9*best_bw;
-            stable_rate_=target;
+           // stable_rate_=target;
+            if(cluter_id-back_off_id_>=kBackoffEffectiveWindow){
             max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
             max_bandwidth_.Update(target,cluter_id);
-           // max_rate_record_=bw;
+            back_off_id_=cluter_id;
+            stable_rate_=BandwidthEstimate();
+            }
+            //max_bandwidth_.Update(target,cluter_id);
+            //add for test
+            //max_rate_record_=target;
         }else{
-        	//if(best_bw>stable_rate_){
-        		stable_rate_=acked_bw;
+            if(cluter_id-back_off_id_<=kBackoffEffectiveWindow){
+                max_bandwidth_.Update(bw,cluter_id);
+               // stable_rate_=back_off*BandwidthEstimate();
+            }else{
+                max_bandwidth_.Update(bw,cluter_id);
+                stable_rate_=acked_bw;//BandwidthEstimate();
+            }
+        	//if(best_bw>stable_rate_){  
+        		//stable_rate_=acked_bw;
+                 //stable_rate_=BandwidthEstimate();//add for test
         	//}
         }
 	}
     if(is_recover_effective_){
         is_recover_effective_=false;
-    }
-    if(bw>max_rate_record_){
-        max_rate_record_=bw;
     }
 }
 void MyBbrSenderV1::UserDefinePeriod(uint32_t ms){

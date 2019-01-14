@@ -52,7 +52,7 @@ public:
 		trace_loss_cb_=cb;
 	}
 	uint64_t GetIntantRate(){
-		return bps_;
+		return s_bps_;
 	}
 	uint64_t GetPendingLen(){
 		return pending_bytes_;
@@ -61,17 +61,28 @@ public:
 		return queue_offset_;
 	}
 	uint64_t get_rate(){ return bps_;}
+    uint64_t get_srate(){return s_bps_;}
 	uint32_t get_rtt(){
 		return cur_rtt_;
 	}
 	uint64_t get_cost(){
 		uint32_t cost=0;
-		cost=queue_offset_;
-		float delay=((float)pending_bytes_*8*1000)/bps_;
+		//cost=queue_offset_;
+		float delay=((float)pending_bytes_*8*1000)/s_bps_;
 		cost+=delay;
 		cost+=cur_rtt_/2;
 		return cost;
 	}
+    uint64_t get_aggregate_delay(){
+    	uint32_t delay=0;
+        float waitting=((float)pending_bytes_*8*1000)/s_bps_;
+    	if(aggregate_delay_==0){
+    		delay=cur_rtt_/2;
+    	}else{
+    		delay=aggregate_delay_;
+    	}
+        return delay+waitting;      
+    }
 	int64_t get_first_ts(){
 		int64_t first_ts=-1;
 		if(mpsender_){
@@ -93,9 +104,11 @@ private:
 	void RecordRate(uint32_t now);
 	void UpdateRate(uint32_t now);
 	void UpdateRtt(uint64_t seq);
+	void UpdateAggregeteDelay(uint32_t delay);
 	void DetectLoss(uint64_t seq);
 	void RemoveSeqDelayMapLe(uint64_t seq);
 	void RemoveSeqIdMapLe(uint64_t seq);
+	void RemoveIdDelayMapLe(uint32_t packet_id);
 	void CheckQueueExceed(uint32_t now);
 	void SendPacketWithoutCongestion(std::shared_ptr<zsy::VideoPacketWrapper>packet,
 			uint32_t ns_now);
@@ -130,8 +143,10 @@ private:
     TraceTimeOffset trace_time_offset_cb_;
     uint32_t rate_out_next_{0};
     uint32_t cur_rtt_{0};
+    uint32_t aggregate_delay_{0};
     uint32_t pending_bytes_{0};
     int64_t bps_{0};
+    int64_t s_bps_{0};
     uint32_t rate_update_next_{0};
     uint32_t over_offset_ts_{0};
     uint64_t queue_offset_{0};

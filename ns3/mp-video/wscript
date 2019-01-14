@@ -38,6 +38,8 @@ def build(bld):
     'model/fun_test/t_pacer_sender.cc',
     'model/fun_test/t_sendagent.cc',
     'model/fun_test/t_recvagent.cc',
+    'model/mock_sender.cc',
+    'model/mock_receiver.cc',
     'model/mp_sender_v1.cc',
     'model/mp_receiver_v1.cc',
     'model/path_sender_v1.cc',
@@ -53,6 +55,7 @@ def build(bld):
     'model/ns_quic_time.cc',
     'model/trace_v1.cc',
     'model/congestion/bbr_sender_v1.cc',
+    'model/congestion/bbr_sender_v2.cc',
 	]
     headers = bld(features='ns3header')
     headers.module = 'mp-video'
@@ -92,6 +95,8 @@ def build(bld):
     'model/fun_test/t_pacer_sender.h',
     'model/fun_test/t_sendagent.h',
     'model/fun_test/t_recvagent.h',
+    'model/mock_sender.h',
+    'model/mock_receiver.h',
     'model/mp_sender_v1.h',
     'model/mp_receiver_v1.h',
     'model/path_sender_v1.h',
@@ -109,5 +114,6 @@ def build(bld):
     'model/ns_quic_time.h',
     'model/trace_v1.h',
     'model/congestion/bbr_sender_v1.h',
+    'model/congestion/bbr_sender_v2.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

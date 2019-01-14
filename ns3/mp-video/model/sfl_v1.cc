@@ -23,7 +23,7 @@ void SFLScheduleV1::IncomingPackets(std::map<uint32_t,uint32_t>&packets,
 			Ptr<PathSenderV1> subpath=sender_->GetPathInfo(pid);
 			path_water_t water;
 			water.pid=pid;
-			water.owd=subpath->get_cost();//subpath->get_rtt()/2;
+			water.owd=subpath->get_aggregate_delay();//subpath->get_cost();//subpath->get_rtt()/2;
 			water.bps=subpath->GetIntantRate();
 			water.byte=0;
 	        if(water.bps==0)

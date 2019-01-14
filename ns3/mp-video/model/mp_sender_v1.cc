@@ -3,6 +3,7 @@
 #include "ns3/simulator.h"
 #include "ns3/log.h"
 #include <assert.h>
+#include <iostream>
 using namespace ns3;
 namespace zsy{
 NS_LOG_COMPONENT_DEFINE("MpSenderV1");
@@ -154,7 +155,8 @@ void MpSenderV1::PacketSchedule(uint32_t packet_id,uint8_t pid){
 		path->OnVideoPacket(packet_id,packet,false);
 		sent_buf_.insert(std::make_pair(packet_id,packet));
 	}else{
-		NS_LOG_ERROR("path not found");
+        std::cout<<"path bug1"<<pid<<std::endl;
+		NS_LOG_ERROR("path not found"<<pid);
 	}
 
 }
@@ -178,7 +180,8 @@ void MpSenderV1::PacketRetrans(uint32_t packet_id,uint8_t pid){
 			Ptr<PathSenderV1> path=path_it->second;
 			path->OnVideoPacket(packet_id,packet,true);
 		}else{
-			NS_LOG_ERROR("path not found");
+            std::cout<<"path bug"<<pid<<std::endl;
+			NS_LOG_ERROR("path not found"<<pid);
 		}
 	}
 }
