@@ -20,7 +20,7 @@ namespace ns3{
 class MockSender:public Application,
 public quic::BandwidthObserver{
 public:
-	MockSender(uint32_t min_bps,uint32_t max_bps,int instance);
+	MockSender(uint32_t min_bps,uint32_t max_bps,int instance,uint8_t cc_ver);
 	~MockSender();
 	void HeartBeat();
 	void OnAck(uint64_t seq);

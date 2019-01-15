@@ -1,5 +1,5 @@
-#ifndef NS3_MPVIDEO_CONGESTION_BBR_SENDER_V2_H_
-#define NS3_MPVIDEO_CONGESTION_BBR_SENDER_V2_H_
+#ifndef NS3_MPVIDEO_CONGESTION_BBR_SENDER_V3_H_
+#define NS3_MPVIDEO_CONGESTION_BBR_SENDER_V3_H_
 #include "net/third_party/quic/core/congestion_control/windowed_filter.h"
 #include "net/my_quic_random.h"
 #include "net/my_controller_interface.h"
@@ -15,8 +15,9 @@
 #include <string>
 #include "sampler.h"
 #include "ns3/callback.h"
+//consider queue delay into consideration,
 namespace quic{
-class MyBbrSenderV2:public BandwidthEstimateInteface,
+class MyBbrSenderV3:public BandwidthEstimateInteface,
 public CongestionController{
 public:
 	enum Mode{
@@ -25,8 +26,8 @@ public:
 			ST_INCREASE,
 			ST_DECREASE,
 		};
-	MyBbrSenderV2(uint64_t min_bps,BandwidthObserver *observer);
-	~MyBbrSenderV2();
+	MyBbrSenderV3(uint64_t min_bps,BandwidthObserver *observer);
+	~MyBbrSenderV3();
 	QuicBandwidth PaceRate() override;
 	QuicBandwidth GetReferenceRate() override;
 	QuicBandwidth BandwidthEstimate();
@@ -66,7 +67,7 @@ private:
 	void MaybeEnterOrExitDecrease(QuicTime now,
 	                              bool min_rtt_expired,bool is_congested,int64_t round);
 	void CheckIfFullBandwidthReached();
-	bool CheckIfCongestion(QuicBandwidth instant_bw,int64_t round);
+	bool CheckIfCongestion();
 	QuicTime::Delta GetMinRtt();
 	QuicByteCount GetTargetCongestionWindow(float gain);
 	QuicByteCount GetTargetInflightInDecrease(float gain) ;
@@ -88,8 +89,10 @@ private:
 	// the round trip counter to advance.
 	QuicPacketCount current_round_trip_end_{0};
 	uint64_t round_trip_count_{0};
+	uint64_t last_backoff_count_{0};
 	std::map<QuicPacketNumber,std::shared_ptr<PerPacket>> sent_packets_map_;
 	QuicTime::Delta min_rtt_;
+	QuicTime::Delta s_rtt_;
 	QuicTime min_rtt_timestamp_;
 	QuicTime::Delta min_rtt_in_decrease_;
 	QuicTime min_rtt_timestamp_in_decrease_;
@@ -123,4 +126,4 @@ private:
 	MySampler sampler_;
 };
 }
-#endif /* NS3_MPVIDEO_CONGESTION_BBR_SENDER_V2_H_ */
+#endif /* NS3_MPVIDEO_CONGESTION_BBR_SENDER_V3_H_ */

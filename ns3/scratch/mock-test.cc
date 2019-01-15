@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     uint32_t min_bps=500000;
     uint32_t max_bps=3000000;
     int cc_counter=1;
-    Ptr<MockSender> spath1_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter);
+    Ptr<MockSender> spath1_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,3);
 	Ptr<MockReceiver> rpath1_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath1_1);
     nodes.Get(1)->AddApplication (rpath1_1);
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     spath1_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace1));
 
     cc_counter++;
-    Ptr<MockSender> spath2_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter);
+    Ptr<MockSender> spath2_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,3);
 	Ptr<MockReceiver> rpath2_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath2_1);
     nodes.Get(1)->AddApplication (rpath2_1);
@@ -155,15 +155,15 @@ int main(int argc, char *argv[])
 
 
     cc_counter++;
-    Ptr<MockSender> spath3_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter);
+    Ptr<MockSender> spath3_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,2);
 	Ptr<MockReceiver> rpath3_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath3_1);
     nodes.Get(1)->AddApplication (rpath3_1);
     spath3_1->Bind(client_port+2);
     rpath3_1->Bind(servPort+2);
-    spath3_1->SetStartTime (Seconds (appStart+100));
+    spath3_1->SetStartTime (Seconds (appStart+200));
     spath3_1->SetStopTime (Seconds (appStop));
-    rpath3_1->SetStartTime (Seconds (appStart+100));
+    rpath3_1->SetStartTime (Seconds (appStart+200));
     rpath3_1->SetStopTime (Seconds (appStop));
     remote=rpath3_1->GetLocalAddress();
     spath3_1->ConfigurePeer(remote.GetIpv4(),remote.GetPort());
