@@ -3,7 +3,7 @@
 #include <assert.h>
 namespace quic{
 const float kDefaultHighGain = 2.0f;
-const float kDecreaseGain=0.75;
+const float kDecreaseGain=0.9;
 const float kStartupGrowthTarget = 1.25;
 const int64_t kRoundTripsWithoutGrowthBeforeExitingStartup = 3;
 const float kBandwidthLossFactor=0.9;//0.95;//0.9
@@ -142,11 +142,11 @@ void MyBbrSenderV3::CheckIfFullBandwidthReached(){
 }
 bool MyBbrSenderV3::CheckIfCongestion(){
 	bool congestion=false;
-	if(s_rtt_==QuicTime::Delta::Zero()||min_rtt_==QuicTime::Delta::Zero()){
+	if(s_rtt_==QuicTime::Delta::Zero()||base_line_rtt_==QuicTime::Delta::Infinite()){
 		return congestion;
 	}
 	QuicTime::Delta offset=QuicTime::Delta::FromMilliseconds(kTolerableDelayOffset);
-	if(s_rtt_-min_rtt_>offset){
+	if(s_rtt_-base_line_rtt_>offset){
 		congestion=true;
 	}
 	return congestion;
@@ -177,18 +177,21 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 		max_bw_in_increase_=QuicBandwidth::Zero();
         sending_rate_=QuicBandwidth::Zero();
         min_rtt_in_decrease_=QuicTime::Delta::Infinite();
-		if(round-last_backoff_count_<kDelayBackoffWindow){
+        seq_at_backoff_=last_sent_packet_;
+        base_line_rtt_=QuicTime::Delta::Infinite();
+        s_rtt_=QuicTime::Delta::Zero();
+		/*if(round-last_backoff_count_<kDelayBackoffWindow){
 			pacing_gain_=kDelayBackoffGain;
-		}else{
+		}else*/{
 			pacing_gain_ =kDecreaseGain;
 			if(is_congested){
 				target=best*kCongestionBackoff;
+                max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+			    max_bandwidth_.Update(target,round);
 			}else{
-				target=best*kSelfInflictQueueBackoff;
+				//target=best*kSelfInflictQueueBackoff;
 			}
 	        dynamic_congestion_back_off_=0.0;
-			max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
-			max_bandwidth_.Update(target,round);
 		}
 		last_backoff_count_=round;
 	}
@@ -201,12 +204,12 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 			excess_drained=true;
 		}
 		if(/*((now-exit_probe_rtt_at_)>4*min_rtt_record_)||*/excess_drained){
-			if(s_rtt_==QuicTime::Delta::Zero()){
+			if(min_rtt_in_decrease_==QuicTime::Delta::Infinite()){
 				min_rtt_=min_rtt_record_;
 				min_rtt_timestamp_=now;
 			}else{
-				min_rtt_=s_rtt_;
-				min_rtt_timestamp_=now;
+				min_rtt_=min_rtt_in_decrease_;
+				min_rtt_timestamp_=min_rtt_timestamp_in_decrease_;
 			}
 			EnterIncreaseMode(now);
 		}
@@ -247,10 +250,10 @@ void MyBbrSenderV3::CalculatePacingRate(){
 	}
 	if(mode_==ST_INCREASE){
 		uint64_t rtt=GetMinRtt().ToMilliseconds();
-		uint64_t increase_bps=kPacketIncreaseSize*1000*8/rtt;
+		//uint64_t increase_bps=kPacketIncreaseSize*1000*8/rtt;
         uint64_t base_bps=pacing_rate_.ToKBitsPerSecond()*1000;
-		uint64_t bps=base_bps+increase_bps;
-        //uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
+		//uint64_t bps=base_bps+increase_bps;
+        uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
         sending_rate_=QuicBandwidth::FromBitsPerSecond(base_bps);
 		pacing_rate_=QuicBandwidth::FromBitsPerSecond(bps);
 	}
@@ -281,6 +284,7 @@ void MyBbrSenderV3::UpdateRttAndInflight(QuicTime now,
 		QuicPacketNumber packet_number){
 	auto it=sent_packets_map_.find(packet_number);
 	if(it!=sent_packets_map_.end()){
+		QuicPacketNumber seq=it->first;
 		std::shared_ptr<PerPacket> packet=it->second;
 		QuicTime::Delta rtt=now-packet->sent_ts;
 		if(min_rtt_==QuicTime::Delta::Zero()){
@@ -295,13 +299,21 @@ void MyBbrSenderV3::UpdateRttAndInflight(QuicTime now,
 				min_rtt_timestamp_=now;
 			}
 		}
+        if(seq>seq_at_backoff_){
 		if(s_rtt_==QuicTime::Delta::Zero()){
 			s_rtt_=rtt;
 		}else{
 			int64_t old_ms=s_rtt_.ToMilliseconds();
 			int64_t new_ms=rtt.ToMilliseconds();
 			int64_t smooth_ms=((kSmoothRttDen-kSmoothRttNum)*old_ms+kSmoothRttNum*new_ms)/kSmoothRttDen;
-			s_rtt_=QuicTime::Delta::FromMilliseconds(smooth_ms);
+			s_rtt_=QuicTime::Delta::FromMilliseconds(smooth_ms);                
+		}
+        }
+
+		if(seq>seq_at_backoff_){
+			if(rtt<base_line_rtt_){
+				base_line_rtt_=rtt;
+			}
 		}
 		if(mode_==ST_DECREASE){
 			if(rtt<=min_rtt_in_decrease_){

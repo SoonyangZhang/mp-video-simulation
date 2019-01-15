@@ -90,6 +90,8 @@ private:
 	QuicPacketCount current_round_trip_end_{0};
 	uint64_t round_trip_count_{0};
 	uint64_t last_backoff_count_{0};
+	QuicPacketNumber seq_at_backoff_{0};
+	QuicTime::Delta  base_line_rtt_{QuicTime::Delta::Infinite()};
 	std::map<QuicPacketNumber,std::shared_ptr<PerPacket>> sent_packets_map_;
 	QuicTime::Delta min_rtt_;
 	QuicTime::Delta s_rtt_;
