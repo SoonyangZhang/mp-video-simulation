@@ -42,6 +42,8 @@ MockSender::MockSender(uint32_t min_bps,uint32_t max_bps,int instance,uint8_t cc
         child_cc->SetStateTraceFunc(MakeCallback(&TraceState::OnNewState,&tracer_));
     }
 	pacer_.set_sender(cc_);
+    //quic::QuicBandwidth bw=quic::QuicBandwidth::FromBitsPerSecond(max_bps_);
+    //pacer_.set_max_pacing_rate(bw);
 	bps_=500000;
 }
 MockSender::~MockSender(){

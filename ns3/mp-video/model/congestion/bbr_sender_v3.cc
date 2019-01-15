@@ -6,9 +6,7 @@ const float kDefaultHighGain = 2.0f;
 const float kDecreaseGain=0.9;
 const float kStartupGrowthTarget = 1.25;
 const int64_t kRoundTripsWithoutGrowthBeforeExitingStartup = 3;
-const float kBandwidthLossFactor=0.9;//0.95;//0.9
 //const float KDelayIncreaseFactor=
-const int64_t kContinuousBandwidthLoss=1;
 const float kSimilarMinRttThreshold = 1.125;
 const uint64_t kBandwidthWindowSize=10;
 const uint32_t kInitialCongestionWindowPackets = 10;
@@ -41,9 +39,8 @@ MyBbrSenderV3::MyBbrSenderV3(uint64_t min_bps,BandwidthObserver *observer)
 ,pacing_rate_(QuicBandwidth::Zero())
 ,max_bandwidth_(kBandwidthWindowSize,QuicBandwidth::Zero(),0)
 ,high_gain_(kDefaultHighGain)
-,drain_gain_{1.0/kDefaultHighGain}
-,num_startup_rtts_{kRoundTripsWithoutGrowthBeforeExitingStartup}
-,num_bw_decrease_rtts_(kContinuousBandwidthLoss)
+,drain_gain_(1.0/kDefaultHighGain)
+,num_startup_rtts_(kRoundTripsWithoutGrowthBeforeExitingStartup)
 ,bandwidth_at_last_round_(QuicBandwidth::Zero())
 ,initial_congestion_window_(kInitialCongestionWindowPackets*kDefaultSegmentSize){
 	EnterStartUpMode();
@@ -101,16 +98,7 @@ void MyBbrSenderV3::OnAck(QuicTime event_time,
 		CalculatePacingRate();
 		return ;
 	}
-	if(is_round_update){
-		max_bandwidth_.Update(bw,current_round);
-		if(mode_==ST_INCREASE){
-			UpdateMaxBw();
-		}
-	}
-	if (is_round_update && !is_at_full_bandwidth_) {
-	   CheckIfFullBandwidthReached();
-	}
-	MaybeExitStartupOrDrain(event_time);
+
 	bool min_rtt_expired=false;
 	min_rtt_expired=event_time>(min_rtt_timestamp_ + kMinRttExpiry);
     bool is_congested=false;
@@ -119,8 +107,25 @@ void MyBbrSenderV3::OnAck(QuicTime event_time,
 			is_congested=CheckIfCongestion();
 		}
 	}
-    //min_rtt_expired=false;//for disable 10s expire, then, other flow will not get rate;
+    if(is_congested){
+        min_rtt_expired=true;
+        is_congested=false;
+    }
     MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
+    UpdateCongestionSignal(packet_number);
+	if(is_round_update){
+        // not record the rate before backoff,or else, rate error will introduced
+        if(packet_number>seq_at_backoff_){
+         max_bandwidth_.Update(bw,current_round);
+         if(mode_==ST_INCREASE){
+			UpdateMaxBw();
+		}
+        }
+	}
+	if (is_round_update && !is_at_full_bandwidth_) {
+	   CheckIfFullBandwidthReached();
+	}
+	MaybeExitStartupOrDrain(event_time);
 	CalculatePacingRate();
 }
 void MyBbrSenderV3::EnterStartUpMode(){
@@ -177,15 +182,16 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 		max_bw_in_increase_=QuicBandwidth::Zero();
         sending_rate_=QuicBandwidth::Zero();
         min_rtt_in_decrease_=QuicTime::Delta::Infinite();
-        seq_at_backoff_=last_sent_packet_;
-        base_line_rtt_=QuicTime::Delta::Infinite();
-        s_rtt_=QuicTime::Delta::Zero();
 		/*if(round-last_backoff_count_<kDelayBackoffWindow){
-			pacing_gain_=kDelayBackoffGain;
+			pacing_gain_=0.9;
 		}else*/{
 			pacing_gain_ =kDecreaseGain;
 			if(is_congested){
+                seq_at_backoff_=last_sent_packet_;
+                base_line_rtt_=QuicTime::Delta::Infinite();
+                s_rtt_=QuicTime::Delta::Zero();
 				target=best*kCongestionBackoff;
+                congestion_backoff_flag_=true;
                 max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
 			    max_bandwidth_.Update(target,round);
 			}else{
@@ -200,9 +206,12 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 			exit_probe_rtt_at_=now;
 		}
 		bool excess_drained=false;
-		if(bytes_in_flight_<=GetTargetInflightInDecrease(1.0)){
+		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(1.0)){
 			excess_drained=true;
 		}
+        if(congestion_backoff_flag_){
+          seq_at_backoff_=last_sent_packet_;  
+        }
 		if(/*((now-exit_probe_rtt_at_)>4*min_rtt_record_)||*/excess_drained){
 			if(min_rtt_in_decrease_==QuicTime::Delta::Infinite()){
 				min_rtt_=min_rtt_record_;
@@ -211,6 +220,7 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 				min_rtt_=min_rtt_in_decrease_;
 				min_rtt_timestamp_=min_rtt_timestamp_in_decrease_;
 			}
+            congestion_backoff_flag_=false;
 			EnterIncreaseMode(now);
 		}
 	}
@@ -284,9 +294,9 @@ void MyBbrSenderV3::UpdateRttAndInflight(QuicTime now,
 		QuicPacketNumber packet_number){
 	auto it=sent_packets_map_.find(packet_number);
 	if(it!=sent_packets_map_.end()){
-		QuicPacketNumber seq=it->first;
 		std::shared_ptr<PerPacket> packet=it->second;
 		QuicTime::Delta rtt=now-packet->sent_ts;
+        cur_rtt_=rtt;
 		if(min_rtt_==QuicTime::Delta::Zero()){
 			min_rtt_=rtt;
 			min_rtt_timestamp_=now;
@@ -297,22 +307,6 @@ void MyBbrSenderV3::UpdateRttAndInflight(QuicTime now,
 			}
 			if(rtt>min_rtt_&&rtt<=min_rtt_*kSimilarMinRttThreshold){
 				min_rtt_timestamp_=now;
-			}
-		}
-        if(seq>seq_at_backoff_){
-		if(s_rtt_==QuicTime::Delta::Zero()){
-			s_rtt_=rtt;
-		}else{
-			int64_t old_ms=s_rtt_.ToMilliseconds();
-			int64_t new_ms=rtt.ToMilliseconds();
-			int64_t smooth_ms=((kSmoothRttDen-kSmoothRttNum)*old_ms+kSmoothRttNum*new_ms)/kSmoothRttDen;
-			s_rtt_=QuicTime::Delta::FromMilliseconds(smooth_ms);                
-		}
-        }
-
-		if(seq>seq_at_backoff_){
-			if(rtt<base_line_rtt_){
-				base_line_rtt_=rtt;
 			}
 		}
 		if(mode_==ST_DECREASE){
@@ -358,5 +352,26 @@ void MyBbrSenderV3::PrintDebugInfo(uint64_t bps,std::string state){
 	if(!trace_state_cb_.IsNull()){
 		trace_state_cb_(bps,state);
 	}
+}
+void MyBbrSenderV3::UpdateCongestionSignal(QuicPacketNumber ack_seq){
+        if(cur_rtt_==QuicTime::Delta::Zero()){
+            return ;
+        }
+        if(ack_seq>seq_at_backoff_){
+		if(s_rtt_==QuicTime::Delta::Zero()){
+			s_rtt_=cur_rtt_;
+		}else{
+			int64_t old_ms=s_rtt_.ToMilliseconds();
+			int64_t new_ms=cur_rtt_.ToMilliseconds();
+			int64_t smooth_ms=((kSmoothRttDen-kSmoothRttNum)*old_ms+kSmoothRttNum*new_ms)/kSmoothRttDen;
+			s_rtt_=QuicTime::Delta::FromMilliseconds(smooth_ms);                
+		}
+        }
+
+		if(ack_seq>seq_at_backoff_){
+			if(cur_rtt_<base_line_rtt_){
+				base_line_rtt_=cur_rtt_;
+			}
+		}
 }
 }

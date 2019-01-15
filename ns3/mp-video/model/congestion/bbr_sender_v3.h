@@ -79,6 +79,7 @@ private:
 	void UpdateMaxBw();
 	std::string GetStateString();
 	void PrintDebugInfo(uint64_t bps,std::string state);
+    void UpdateCongestionSignal(QuicPacketNumber ack_seq);
 	QuicBandwidth min_bw_;
 	BandwidthObserver *observer_{NULL};
 	Mode mode_{ST_START};
@@ -91,9 +92,11 @@ private:
 	uint64_t round_trip_count_{0};
 	uint64_t last_backoff_count_{0};
 	QuicPacketNumber seq_at_backoff_{0};
+    bool congestion_backoff_flag_{false};
 	QuicTime::Delta  base_line_rtt_{QuicTime::Delta::Infinite()};
 	std::map<QuicPacketNumber,std::shared_ptr<PerPacket>> sent_packets_map_;
 	QuicTime::Delta min_rtt_;
+    QuicTime::Delta cur_rtt_{QuicTime::Delta::Zero()};
 	QuicTime::Delta s_rtt_;
 	QuicTime min_rtt_timestamp_;
 	QuicTime::Delta min_rtt_in_decrease_;
@@ -101,8 +104,6 @@ private:
 	QuicTime::Delta min_rtt_record_;
 	QuicTime exit_probe_rtt_at_;
 	QuicBandwidth max_bw_in_increase_;
-	int64_t congestion_start_round_{0};
-	int64_t congestion_round_count_{0};
 	QuicBandwidth pacing_rate_;
     QuicBandwidth sending_rate_{QuicBandwidth::Zero()};
 	MaxBandwidthFilter max_bandwidth_;
