@@ -192,6 +192,7 @@ private:
 	int64_t congestion_start_round_{0};
 	int64_t congestion_round_count_{0};
 	QuicBandwidth pacing_rate_;
+    QuicBandwidth sending_rate_{QuicBandwidth::Zero()};
 	MaxBandwidthFilter max_bandwidth_;
 	float pacing_gain_{1.0};
 	// The pacing gain applied during the STARTUP phase.

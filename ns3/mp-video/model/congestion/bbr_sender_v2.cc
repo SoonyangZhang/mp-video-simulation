@@ -134,7 +134,8 @@ const float kDefaultHighGain = 2.0f;
 const float kDecreaseGain=0.75;
 const float kStartupGrowthTarget = 1.25;
 const int64_t kRoundTripsWithoutGrowthBeforeExitingStartup = 3;
-const float kBandwidthLossFactor=0.9;
+const float kBandwidthLossFactor=0.9;//0.95;//0.9
+//const float KDelayIncreaseFactor=
 const int64_t kContinuousBandwidthLoss=1;
 const float kSimilarMinRttThreshold = 1.125;
 const uint64_t kBandwidthWindowSize=10;
@@ -239,6 +240,7 @@ void MyBbrSenderV2::OnAck(QuicTime event_time,
 			is_congested=CheckIfCongestion(bw,current_round);
 		}
 	}
+    //min_rtt_expired=false;//for disable 10s expire, then, other flow will not get rate;
     MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
 	CalculatePacingRate();
 }
@@ -264,7 +266,14 @@ bool MyBbrSenderV2::CheckIfCongestion(QuicBandwidth instant_bw,int64_t round){
 	if(max_bw_in_increase_==QuicBandwidth::Zero()){
 		return congestioned;
 	}
-	if(instant_bw<=kBandwidthLossFactor*max_bw_in_increase_){
+    //QuicBandwidth baseline=kBandwidthLossFactor*max_bw_in_increase_;
+    
+    if(sending_rate_==QuicBandwidth::Zero()){
+        return congestioned;
+    }
+    QuicBandwidth baseline=kBandwidthLossFactor*sending_rate_;
+    
+	if(instant_bw<=baseline){
 		if(congestion_start_round_==0){
 			congestion_start_round_=round;
 			congestion_round_count_=round;
@@ -319,6 +328,7 @@ void MyBbrSenderV2::MaybeEnterOrExitDecrease(QuicTime now,
 		QuicBandwidth best=BandwidthEstimate();
 		QuicBandwidth target=QuicBandwidth::Zero();
 		max_bw_in_increase_=QuicBandwidth::Zero();
+        sending_rate_=QuicBandwidth::Zero();
 		if(is_congested){
 			//target=best*kCongestionBackoff;
             float backoff=Max((float)0.5,dynamic_congestion_back_off_);
@@ -388,8 +398,10 @@ void MyBbrSenderV2::CalculatePacingRate(){
 	if(mode_==ST_INCREASE){
 		uint64_t rtt=GetMinRtt().ToMilliseconds();
 		uint64_t increase_bps=kPacketIncreaseSize*1000*8/rtt;
-		uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+increase_bps;
+        uint64_t base_bps=pacing_rate_.ToKBitsPerSecond()*1000;
+		uint64_t bps=base_bps+increase_bps;
         //uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
+        sending_rate_=QuicBandwidth::FromBitsPerSecond(base_bps);
 		pacing_rate_=QuicBandwidth::FromBitsPerSecond(bps);
 	}
 	if(pacing_rate_!=last_rate){
