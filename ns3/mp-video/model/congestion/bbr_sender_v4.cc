@@ -26,7 +26,8 @@ const float kCongestionBackoff=0.8;
 const float kSelfInflictQueueBackoff=0.9;
 // if cur_rtt_-min_rtt_>kTolerableDelayOffset congested;
 const uint64_t kTolerableDelayOffset=50;
-const float kTolerableDelayFactor=1.5;
+const float kTolerableDelayFactor=1.2;
+const float kTolerableMaxDelayFactor=1.5;
 const uint32_t kSmoothRttNum=90;
 const uint32_t kSmoothRttDen=100;
 const float kDelayBackoffGain=0.9;
@@ -166,9 +167,13 @@ bool MyBbrSenderV4::CheckIfCongestion(){
 	if(offset>threshold){
 		congestion=true;
 	}*/
-    if(s_rtt_>kTolerableDelayFactor*min_rtt_){
+ /*   if(s_rtt_>kTolerableDelayFactor*min_rtt_){
         congestion=true;
-    }
+    }*/
+// kTolerableMaxDelayFactor
+    if(s_rtt_>kTolerableDelayFactor*min_rtt_&&s_rtt_<kTolerableMaxDelayFactor*min_rtt_){
+        congestion=true;
+    }  
 	return congestion;
 }
 void MyBbrSenderV4::MaybeExitStartupOrDrain(QuicTime now){
@@ -232,7 +237,7 @@ void MyBbrSenderV4::MaybeEnterOrExitDecrease(QuicTime now,
 		}
 		bool excess_drained=false;
         if(congestion_backoff_flag_){
-          seq_at_backoff_=last_sent_packet_;
+          //seq_at_backoff_=last_sent_packet_;
         // this value  affect fairness issure, but why ,not quit figure it out,
         //0.8 0.9 is tested ok, but not 1;
 		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(0.9)){
@@ -244,6 +249,10 @@ void MyBbrSenderV4::MaybeEnterOrExitDecrease(QuicTime now,
 		}
         }
 		if(/*((now-exit_probe_rtt_at_)>4*min_rtt_record_)||*/excess_drained){
+            /*if(congestion_backoff_flag_&&base_line_rtt_!=QuicTime::Delta::Infinite()){
+                min_rtt_=base_line_rtt_;
+                min_rtt_timestamp_=base_line_rtt_timestamp_;
+            }else*/{
 			if(min_rtt_in_decrease_==QuicTime::Delta::Infinite()){
 				min_rtt_=min_rtt_record_;
 				min_rtt_timestamp_=now;
@@ -251,6 +260,7 @@ void MyBbrSenderV4::MaybeEnterOrExitDecrease(QuicTime now,
 				min_rtt_=min_rtt_in_decrease_;
 				min_rtt_timestamp_=min_rtt_timestamp_in_decrease_;
 			}
+            }
             congestion_backoff_flag_=false;
 			EnterIncreaseMode(now);
 		}
@@ -337,6 +347,7 @@ void MyBbrSenderV4::UpdateRttAndInflight(QuicTime now,
 		std::shared_ptr<PerPacket> packet=it->second;
 		QuicTime::Delta rtt=now-packet->sent_ts;
         cur_rtt_=rtt;
+        cur_rtt_timestamp_=now;
 		if(min_rtt_==QuicTime::Delta::Zero()){
 			min_rtt_=rtt;
 			min_rtt_timestamp_=now;
@@ -411,6 +422,7 @@ void MyBbrSenderV4::UpdateCongestionSignal(QuicPacketNumber ack_seq){
 		if(ack_seq>seq_at_backoff_){
 			if(cur_rtt_<base_line_rtt_){
 				base_line_rtt_=cur_rtt_;
+                base_line_rtt_timestamp_=cur_rtt_timestamp_;
 			}
 		}
 }

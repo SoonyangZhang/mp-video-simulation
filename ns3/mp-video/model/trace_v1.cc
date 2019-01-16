@@ -115,12 +115,34 @@ void TraceReceiverV1::OnRecvFrame(uint32_t fid,uint32_t delay,uint8_t received,u
 		m_recvFrame<<line<<std::endl;
 	}
 }
+void TraceReceiverV1::OpenTraceOwdFile(std::string filename){
+	char buf[FILENAME_MAX];
+	memset(buf,0,FILENAME_MAX);
+	std::string path = std::string (getcwd(buf, FILENAME_MAX)) + "/traces/"
+			+ filename+"-owd.txt";
+	m_owd.open(path.c_str(), std::fstream::out);
+}
+void TraceReceiverV1::OnRecvOwd(uint64_t seq,uint32_t owd){
+	if(m_owd.is_open()){
+		float now=Simulator::Now().GetSeconds();
+		char line [256];
+		memset(line,0,256);
+		sprintf(line, "%f %16d %16d",now,seq,owd);
+		m_owd<<line<<std::endl;
+	}
+}
 void TraceReceiverV1::Close(){
 	CloseRecvFrameFile();
+	CloseOwdFile();
 }
 void TraceReceiverV1::CloseRecvFrameFile(){
 	if(m_recvFrame.is_open()){
 		m_recvFrame.close();
+	}
+}
+void TraceReceiverV1::CloseOwdFile(){
+	if(m_owd.is_open()){
+		m_owd.close();
 	}
 }
 TraceState::TraceState(){}

@@ -87,6 +87,7 @@ void MockReceiver::OnIncomingMessage(uint8_t *buf,uint32_t len){
 			reader.ReadUInt32(&sent_ts);
 			owd=ns_now-sent_ts;
 			UpdateOneWayDelay(owd);
+			NewSeqDelay(seq,owd);
 		}
 	}
 }
@@ -133,6 +134,11 @@ void MockReceiver::UpdateOneWayDelay(uint32_t new_owd){
 }
 void MockReceiver::ProcessVideoPacket(std::shared_ptr<zsy::VideoPacketReceiveWrapper> packet){
 
+}
+void MockReceiver::NewSeqDelay(uint64_t seq,uint32_t owd){
+	if(!trace_owd_cb_.IsNull()){
+		trace_owd_cb_(seq,owd);
+	}
 }
 }
 

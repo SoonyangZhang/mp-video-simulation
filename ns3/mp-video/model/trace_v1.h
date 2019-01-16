@@ -33,10 +33,14 @@ public:
 	~TraceReceiverV1();
 	void OpenTraceRecvFrameFile(std::string filename);
 	void OnRecvFrame(uint32_t fid,uint32_t delay,uint8_t received,uint8_t total);
+	void OpenTraceOwdFile(std::string filename);
+	void OnRecvOwd(uint64_t seq,uint32_t owd);
 private:
 	void Close();
 	void CloseRecvFrameFile();
+	void CloseOwdFile();
 	std::fstream m_recvFrame;
+	std::fstream m_owd;
 };
 class TraceState{
 public:

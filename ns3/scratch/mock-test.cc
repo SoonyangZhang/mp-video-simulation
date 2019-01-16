@@ -87,7 +87,7 @@ static void InstallTcp(
     serverApps.Stop (Seconds (stopTime));	
 	
 }
-static double simDuration=400;
+static double simDuration=600;
 uint16_t client_port=1234;
 uint16_t servPort=4321;
 float appStart=0.0;
@@ -104,15 +104,15 @@ int main(int argc, char *argv[])
     LogComponentEnable("MockReceiver",LOG_LEVEL_ALL);
     LogComponentEnable("MpSenderV1",LOG_LEVEL_ALL);
 
-	uint64_t linkBw_1   = 4000000;
-    uint32_t msDelay_1  = 100;
+	uint64_t linkBw_1   = 4000000;//4000000;
+    uint32_t msDelay_1  = 100;//50;//100;
     uint32_t msQDelay_1 = 200;
 
     NodeContainer nodes = BuildExampleTopo (linkBw_1, msDelay_1, msQDelay_1);
     uint32_t min_bps=500000;
     uint32_t max_bps=3000000;
     int cc_counter=1;
-    Ptr<MockSender> spath1_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,3);
+    Ptr<MockSender> spath1_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,4);
 	Ptr<MockReceiver> rpath1_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath1_1);
     nodes.Get(1)->AddApplication (rpath1_1);
@@ -132,8 +132,12 @@ int main(int argc, char *argv[])
     spath1_1->SetRateTraceFunc(MakeCallback(&TraceSenderV1::OnRate,&trace1));
     spath1_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace1));
 
+    TraceReceiverV1 rtrace1;
+    rtrace1.OpenTraceOwdFile(log_name_1);
+    rpath1_1->SetDelayTraceFunc(MakeCallback(&TraceReceiverV1::OnRecvOwd,&rtrace1));
+
     cc_counter++;
-    Ptr<MockSender> spath2_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,3);
+    Ptr<MockSender> spath2_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,4);
 	Ptr<MockReceiver> rpath2_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath2_1);
     nodes.Get(1)->AddApplication (rpath2_1);
@@ -153,18 +157,20 @@ int main(int argc, char *argv[])
     spath2_1->SetRateTraceFunc(MakeCallback(&TraceSenderV1::OnRate,&trace2));
     spath2_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace2));
 
-
-    cc_counter++;
-    Ptr<MockSender> spath3_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,2);
+    TraceReceiverV1 rtrace2;
+    rtrace2.OpenTraceOwdFile(log_name_2);
+    rpath2_1->SetDelayTraceFunc(MakeCallback(&TraceReceiverV1::OnRecvOwd,&rtrace2));
+    /*cc_counter++;
+    Ptr<MockSender> spath3_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,4);
 	Ptr<MockReceiver> rpath3_1=CreateObject<MockReceiver>();
     nodes.Get(0)->AddApplication (spath3_1);
     nodes.Get(1)->AddApplication (rpath3_1);
     spath3_1->Bind(client_port+2);
     rpath3_1->Bind(servPort+2);
     spath3_1->SetStartTime (Seconds (appStart+200));
-    spath3_1->SetStopTime (Seconds (appStop));
+    spath3_1->SetStopTime (Seconds (400));
     rpath3_1->SetStartTime (Seconds (appStart+200));
-    rpath3_1->SetStopTime (Seconds (appStop));
+    rpath3_1->SetStopTime (Seconds (400));
     remote=rpath3_1->GetLocalAddress();
     spath3_1->ConfigurePeer(remote.GetIpv4(),remote.GetPort());
 
@@ -173,9 +179,9 @@ int main(int argc, char *argv[])
     trace3.OpenTraceRateFile(log_name_3);
     trace3.OpenTraceLossFile(log_name_3);
     spath3_1->SetRateTraceFunc(MakeCallback(&TraceSenderV1::OnRate,&trace3));
-    spath3_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace3));
+    spath3_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace3));*/
     
-    //InstallTcp(nodes.Get(0),nodes.Get(1),4444,100,200);
+    InstallTcp(nodes.Get(0),nodes.Get(1),4444,100,300);
     Simulator::Stop (Seconds(simDuration));
     Simulator::Run ();
     Simulator::Destroy();

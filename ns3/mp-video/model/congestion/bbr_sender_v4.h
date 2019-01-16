@@ -95,9 +95,11 @@ private:
 	QuicPacketNumber seq_at_backoff_{0};
     bool congestion_backoff_flag_{false};
 	QuicTime::Delta  base_line_rtt_{QuicTime::Delta::Infinite()};
+    QuicTime base_line_rtt_timestamp_{QuicTime::Zero()};
 	std::map<QuicPacketNumber,std::shared_ptr<PerPacket>> sent_packets_map_;
 	QuicTime::Delta min_rtt_;
     QuicTime::Delta cur_rtt_{QuicTime::Delta::Zero()};
+    QuicTime cur_rtt_timestamp_{QuicTime::Zero()};
 	QuicTime::Delta s_rtt_;
 	QuicTime min_rtt_timestamp_;
 	QuicTime::Delta min_rtt_in_decrease_;

@@ -209,6 +209,7 @@ void PathSenderV1::SendFakePacket(){
 }
 void PathSenderV1::SendPaddingPacket(quic::QuicTime quic_now){
 	char buf[MAX_BUF_SIZE]={0};
+    uint32_t ms=Simulator::Now().GetMilliSeconds();
 	quic::my_quic_header_t header;
 	header.seq=seq_;
 	header.seq_len=quic::GetMinSeqLength(header.seq);
@@ -221,12 +222,12 @@ void PathSenderV1::SendPaddingPacket(quic::QuicTime quic_now){
 	public_flags|=type;
 	writer.WriteBytes(&public_flags,1);
 	writer.WriteBytesToUInt64(header.seq_len,header.seq);
+    writer.WriteUInt32(ms);
 	seq_++;
 	Ptr<Packet> p=Create<Packet>((uint8_t*)buf,PADDING_SIZE);
 	SendToNetwork(p);
 	uint16_t payload=PADDING_SIZE-(1+header.seq_len);
 	pacer_.OnPacketSent(quic_now,header.seq,payload);
-	uint32_t ms=Simulator::Now().GetMilliSeconds();
 	seq_delay_map_.insert(std::make_pair(header.seq,ms));
 	//0 mean this packet without effective packet id;
 	seq_id_map_.insert(std::make_pair(header.seq,0));

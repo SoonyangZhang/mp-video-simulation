@@ -16,6 +16,10 @@ class MockReceiver:public Application{
 public:
 	void Bind(uint16_t port);
 	InetSocketAddress GetLocalAddress();
+	typedef Callback<void,uint64_t,uint32_t>TraceOwd;
+	void SetDelayTraceFunc(TraceOwd cb){
+		trace_owd_cb_=cb;
+	}
 private:
 	virtual void StartApplication() override;
 	virtual void StopApplication() override;
@@ -26,13 +30,15 @@ private:
 	void SendToNetwork(Ptr<Packet> p);
 	void UpdateOneWayDelay(uint32_t new_owd);
 	void ProcessVideoPacket(std::shared_ptr<zsy::VideoPacketReceiveWrapper> packet);
-    Ipv4Address peer_ip_;
+    void NewSeqDelay(uint64_t seq,uint32_t owd);
+	Ipv4Address peer_ip_;
     uint16_t peer_port_;
     Ptr<Socket> socket_;
     uint16_t bind_port_;
     uint32_t  owd_{0};
     uint32_t owd_var_{5};
     bool know_peer_{false};
+    TraceOwd trace_owd_cb_;
 };
 }
 #endif /* NS3_MPVIDEO_MOCK_RECEIVER_H_ */
