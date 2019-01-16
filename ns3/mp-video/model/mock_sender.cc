@@ -10,15 +10,18 @@
 #include "ns3/bbr_sender_v1.h"
 #include "ns3/bbr_sender_v2.h"
 #include "ns3/bbr_sender_v3.h"
+#include "ns3/bbr_sender_v4.h"
 #define MAX_BUF_SIZE 1400
 #define PADDING_SIZE 500
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("MockSender");
 enum CC_VERSION{
+    cc_v0,
     cc_v1,
     cc_v2,
     cc_v3,
+    cc_v4,
 };
 MockSender::MockSender(uint32_t min_bps,uint32_t max_bps,int instance,uint8_t cc_ver)
 :min_bps_(min_bps)
@@ -35,11 +38,16 @@ MockSender::MockSender(uint32_t min_bps,uint32_t max_bps,int instance,uint8_t cc
         child_cc=new quic::MyBbrSenderV2(min_bps,this);
         cc_=child_cc;
         child_cc->SetStateTraceFunc(MakeCallback(&TraceState::OnNewState,&tracer_));
-    }else{
+    }else if(cc_ver==cc_v3){
         quic::MyBbrSenderV3 *child_cc=NULL;
         child_cc=new quic::MyBbrSenderV3(min_bps,this);
         cc_=child_cc;
         child_cc->SetStateTraceFunc(MakeCallback(&TraceState::OnNewState,&tracer_));
+    }else{
+        quic::MyBbrSenderV4 *child_cc=NULL;
+        child_cc=new quic::MyBbrSenderV4(min_bps,this);
+        cc_=child_cc;
+        child_cc->SetStateTraceFunc(MakeCallback(&TraceState::OnNewState,&tracer_));    
     }
 	pacer_.set_sender(cc_);
     //quic::QuicBandwidth bw=quic::QuicBandwidth::FromBitsPerSecond(max_bps_);

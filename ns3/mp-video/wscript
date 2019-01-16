@@ -57,6 +57,7 @@ def build(bld):
     'model/congestion/bbr_sender_v1.cc',
     'model/congestion/bbr_sender_v2.cc',
     'model/congestion/bbr_sender_v3.cc',
+    'model/congestion/bbr_sender_v4.cc',
     'model/congestion/sampler.cc',
 	]
     headers = bld(features='ns3header')
@@ -118,6 +119,7 @@ def build(bld):
     'model/congestion/bbr_sender_v1.h',
     'model/congestion/bbr_sender_v2.h',
     'model/congestion/bbr_sender_v3.h',
+    'model/congestion/bbr_sender_v4.h',
     'model/congestion/sampler.h',
 	]
     mpvideo.env.append_value("CFLAGS","-fPIC")

@@ -2,7 +2,9 @@
 #include <iostream>
 #include <assert.h>
 namespace quic{
-const float kPacingGain[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1};
+//const float kPacingGain[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1}; not quite stable
+//accompany with pacing_gain_=0.75 at decrease, GetTargetCongestionWindow(0.8)
+const float kPacingGain[] = {1.11, 0.9, 1, 1, 1, 1, 1, 1};
 const size_t kGainCycleLength = sizeof(kPacingGain) / sizeof(kPacingGain[0]);
 // The size of the bandwidth filter window, in round-trips.
 const uint64_t kBandwidthWindowSize = (kGainCycleLength + 2);
@@ -24,6 +26,7 @@ const float kCongestionBackoff=0.8;
 const float kSelfInflictQueueBackoff=0.9;
 // if cur_rtt_-min_rtt_>kTolerableDelayOffset congested;
 const uint64_t kTolerableDelayOffset=50;
+const float kTolerableDelayFactor=1.5;
 const uint32_t kSmoothRttNum=90;
 const uint32_t kSmoothRttDen=100;
 const float kDelayBackoffGain=0.9;
@@ -111,15 +114,15 @@ void MyBbrSenderV4::OnAck(QuicTime event_time,
 			is_congested=CheckIfCongestion();
 		}
 	}
-    if(is_congested){
+    /*if(is_congested){
         min_rtt_expired=true;
         is_congested=false;
-    }
+    }*/
     MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
     UpdateCongestionSignal(packet_number);
 	if(is_round_update){
         // not record the rate before backoff,or else, rate error will introduced
-        if(packet_number>seq_at_backoff_){
+        /*if(packet_number>seq_at_backoff_)*/{
          max_bandwidth_.Update(bw,current_round);
          if(mode_==ST_INCREASE){
 			UpdateMaxBw();
@@ -157,10 +160,15 @@ bool MyBbrSenderV4::CheckIfCongestion(){
 	if(s_rtt_==QuicTime::Delta::Zero()||base_line_rtt_==QuicTime::Delta::Infinite()){
 		return congestion;
 	}
-	QuicTime::Delta offset=QuicTime::Delta::FromMilliseconds(kTolerableDelayOffset);
-	if(s_rtt_-base_line_rtt_>offset){
+	//QuicTime::Delta offset=s_rtt_-base_line_rtt_;
+	/*QuicTime::Delta offset=s_rtt_-min_rtt_;
+	QuicTime::Delta threshold=QuicTime::Delta::FromMilliseconds(kTolerableDelayOffset);
+	if(offset>threshold){
 		congestion=true;
-	}
+	}*/
+    if(s_rtt_>kTolerableDelayFactor*min_rtt_){
+        congestion=true;
+    }
 	return congestion;
 }
 void MyBbrSenderV4::MaybeExitStartupOrDrain(QuicTime now){
@@ -203,17 +211,17 @@ void MyBbrSenderV4::MaybeEnterOrExitDecrease(QuicTime now,
 		}else*/{
 			//pacing_gain_ =kDecreaseGain;
         	pacing_gain_ =0.75;
-			/*if(is_congested){
+			if(is_congested){
                 seq_at_backoff_=last_sent_packet_;
                 base_line_rtt_=QuicTime::Delta::Infinite();
                 s_rtt_=QuicTime::Delta::Zero();
-				target=best*kCongestionBackoff;
+				//target=best*kCongestionBackoff;
                 congestion_backoff_flag_=true;
-                max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
-			    max_bandwidth_.Update(target,round);
+                //max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+			    //max_bandwidth_.Update(target,round);
 			}else{
 				//target=best*kSelfInflictQueueBackoff;
-			}*/
+			}
 	        dynamic_congestion_back_off_=0.0;
 		}
 		last_backoff_count_=round;
@@ -223,11 +231,17 @@ void MyBbrSenderV4::MaybeEnterOrExitDecrease(QuicTime now,
 			exit_probe_rtt_at_=now;
 		}
 		bool excess_drained=false;
+        if(congestion_backoff_flag_){
+          seq_at_backoff_=last_sent_packet_;
+        // this value  affect fairness issure, but why ,not quit figure it out,
+        //0.8 0.9 is tested ok, but not 1;
+		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(0.9)){
+			excess_drained=true;
+		}  
+        }else{
 		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(1.0)){
 			excess_drained=true;
 		}
-        if(congestion_backoff_flag_){
-          seq_at_backoff_=last_sent_packet_;  
         }
 		if(/*((now-exit_probe_rtt_at_)>4*min_rtt_record_)||*/excess_drained){
 			if(min_rtt_in_decrease_==QuicTime::Delta::Infinite()){

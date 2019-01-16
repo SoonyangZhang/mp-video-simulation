@@ -17,10 +17,12 @@ const QuicTime::Delta kMinRttExpiry = QuicTime::Delta::FromSeconds(10);
 //cwnd increase 1 every rtt.
 const uint32_t kPacketIncreaseSize=1000;
 const uint32_t kBandWidthIncrease=5000;
+const float kBandwidthProbeArray[]={4,3.5,3,2.5,2,1.5,1,1};
+const size_t kAICycleLength=sizeof(kBandwidthProbeArray)/sizeof(kBandwidthProbeArray[0]);
 const float kCongestionBackoff=0.8;
 const float kSelfInflictQueueBackoff=0.9;
-// if cur_rtt_-min_rtt_>kTolerableDelayOffset congested;
-const uint64_t kTolerableDelayOffset=50;
+// if cur_rtt_-min_rtt_>kTolerableDelayOffset  50 ms congested;
+const float kTolerableDelayFactor=1.5;
 const uint32_t kSmoothRttNum=90;
 const uint32_t kSmoothRttDen=100;
 const float kDelayBackoffGain=0.9;
@@ -44,6 +46,7 @@ MyBbrSenderV3::MyBbrSenderV3(uint64_t min_bps,BandwidthObserver *observer)
 ,bandwidth_at_last_round_(QuicBandwidth::Zero())
 ,initial_congestion_window_(kInitialCongestionWindowPackets*kDefaultSegmentSize){
 	EnterStartUpMode();
+	random_.reset(new MyQuicRandom());
 }
 MyBbrSenderV3::~MyBbrSenderV3(){}
 QuicBandwidth MyBbrSenderV3::PaceRate(){
@@ -107,25 +110,31 @@ void MyBbrSenderV3::OnAck(QuicTime event_time,
 			is_congested=CheckIfCongestion();
 		}
 	}
-    if(is_congested){
+    /*if(is_congested){
         min_rtt_expired=true;
         is_congested=false;
-    }
+    }*/
     MaybeEnterOrExitDecrease(event_time,min_rtt_expired,is_congested,current_round);
     UpdateCongestionSignal(packet_number);
 	if(is_round_update){
         // not record the rate before backoff,or else, rate error will introduced
-        if(packet_number>seq_at_backoff_){
+        /*if(packet_number>seq_at_backoff_)*/{
          max_bandwidth_.Update(bw,current_round);
-         if(mode_==ST_INCREASE){
+        }/*else{
+            bw=kCongestionBackoff*bw;
+            max_bandwidth_.Update(bw,current_round);
+        }*/
+        if(mode_==ST_INCREASE){
 			UpdateMaxBw();
 		}
-        }
 	}
 	if (is_round_update && !is_at_full_bandwidth_) {
 	   CheckIfFullBandwidthReached();
 	}
 	MaybeExitStartupOrDrain(event_time);
+	if(mode_==ST_INCREASE){
+		UpdateAICycle(event_time);
+	}
 	CalculatePacingRate();
 }
 void MyBbrSenderV3::EnterStartUpMode(){
@@ -150,10 +159,15 @@ bool MyBbrSenderV3::CheckIfCongestion(){
 	if(s_rtt_==QuicTime::Delta::Zero()||base_line_rtt_==QuicTime::Delta::Infinite()){
 		return congestion;
 	}
-	QuicTime::Delta offset=QuicTime::Delta::FromMilliseconds(kTolerableDelayOffset);
-	if(s_rtt_-base_line_rtt_>offset){
+	//QuicTime::Delta offset=s_rtt_-base_line_rtt_;
+	/*QuicTime::Delta offset=s_rtt_-min_rtt_;
+	QuicTime::Delta threshold=QuicTime::Delta::FromMilliseconds(kTolerableDelayOffset);
+	if(offset>threshold){
 		congestion=true;
-	}
+	}*/
+    if(s_rtt_>kTolerableDelayFactor*min_rtt_){
+        congestion=true;
+    }
 	return congestion;
 }
 void MyBbrSenderV3::MaybeExitStartupOrDrain(QuicTime now){
@@ -170,6 +184,7 @@ void MyBbrSenderV3::MaybeExitStartupOrDrain(QuicTime now){
 void MyBbrSenderV3::EnterIncreaseMode(QuicTime now){
 	mode_=ST_INCREASE;
 	pacing_gain_=1.0;
+	cycle_current_offset_ = random_->RandUint64() % (kAICycleLength - 1);
 }
 void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
                               bool min_rtt_expired,bool is_congested,int64_t round){
@@ -190,10 +205,11 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
                 seq_at_backoff_=last_sent_packet_;
                 base_line_rtt_=QuicTime::Delta::Infinite();
                 s_rtt_=QuicTime::Delta::Zero();
-				target=best*kCongestionBackoff;
+				//target=best*kCongestionBackoff;
                 congestion_backoff_flag_=true;
-                max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
-			    max_bandwidth_.Update(target,round);
+                //pacing_gain_=0.75;
+                //max_bandwidth_.Reset(QuicBandwidth::Zero(),0);
+			    //max_bandwidth_.Update(target,round);
 			}else{
 				//target=best*kSelfInflictQueueBackoff;
 			}
@@ -206,9 +222,16 @@ void MyBbrSenderV3::MaybeEnterOrExitDecrease(QuicTime now,
 			exit_probe_rtt_at_=now;
 		}
 		bool excess_drained=false;
+        //test 0.8;
+        /*if(congestion_backoff_flag_){
+		if(bytes_in_flight_<=GetTargetCongestionWindow(0.8)){
+			excess_drained=true;
+		}        
+        }else*/{
 		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(1.0)){
 			excess_drained=true;
 		}
+        }
         if(congestion_backoff_flag_){
           seq_at_backoff_=last_sent_packet_;  
         }
@@ -250,6 +273,13 @@ QuicByteCount MyBbrSenderV3::GetTargetInflightInDecrease(float gain){
 
 	  return congestion_window;
 }
+void MyBbrSenderV3::UpdateAICycle(QuicTime now){
+	bool should_advance_gain_cycling = (now - last_cycle_start_)>GetMinRtt();
+	if(should_advance_gain_cycling){
+         cycle_current_offset_ = (cycle_current_offset_ + 1) %(kAICycleLength - 1);
+		 last_cycle_start_ = now;
+	}
+}
 void MyBbrSenderV3::CalculatePacingRate(){
 	QuicBandwidth bw=BandwidthEstimate();
 	QuicBandwidth last_rate=pacing_rate_;
@@ -263,7 +293,10 @@ void MyBbrSenderV3::CalculatePacingRate(){
 		//uint64_t increase_bps=kPacketIncreaseSize*1000*8/rtt;
         uint64_t base_bps=pacing_rate_.ToKBitsPerSecond()*1000;
 		//uint64_t bps=base_bps+increase_bps;
-        uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
+        float gain=kBandwidthProbeArray[cycle_current_offset_];
+        //uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+kBandWidthIncrease;
+        uint64_t increase=gain*kBandWidthIncrease;
+        uint64_t bps=pacing_rate_.ToKBitsPerSecond()*1000+increase;
         sending_rate_=QuicBandwidth::FromBitsPerSecond(base_bps);
 		pacing_rate_=QuicBandwidth::FromBitsPerSecond(bps);
 	}

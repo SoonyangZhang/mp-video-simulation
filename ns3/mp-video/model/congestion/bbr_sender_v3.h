@@ -71,6 +71,7 @@ private:
 	QuicTime::Delta GetMinRtt();
 	QuicByteCount GetTargetCongestionWindow(float gain);
 	QuicByteCount GetTargetInflightInDecrease(float gain) ;
+	void UpdateAICycle(QuicTime now);
 	void CalculatePacingRate();
 	bool UpdateRoundTripCounter(QuicPacketNumber last_acked_packet);
 	void AddPacketInfo(QuicTime now,QuicPacketNumber packet_number,QuicByteCount payload);
@@ -125,6 +126,14 @@ private:
 	QuicByteCount bytes_in_flight_{0};
 	// The initial value of the |congestion_window_|.
 	QuicByteCount initial_congestion_window_;
+
+	// Number of round-trips in PROBE_BW mode, used for determining the current
+	// pacing gain cycle.
+	int cycle_current_offset_{0};
+	// The time at which the last pacing gain cycle was started.
+	QuicTime last_cycle_start_{QuicTime::Zero()};
+	std::shared_ptr<MyQuicRandom> random_;
+
     float dynamic_congestion_back_off_{0.0};
 	MySampler sampler_;
 };
