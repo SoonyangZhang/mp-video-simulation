@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
     LogComponentEnable("MockReceiver",LOG_LEVEL_ALL);
     LogComponentEnable("MpSenderV1",LOG_LEVEL_ALL);
 
-	uint64_t linkBw_1   = 2000000;//4000000;
+	uint64_t linkBw_1   = 4000000;//4000000;
     uint32_t msDelay_1  = 100;//50;//100;
     uint32_t msQDelay_1 = 200;
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     TraceReceiverV1 rtrace1;
     rtrace1.OpenTraceOwdFile(log_name_1);
     rpath1_1->SetDelayTraceFunc(MakeCallback(&TraceReceiverV1::OnRecvOwd,&rtrace1));
-
+    /*
     cc_counter++;
     Ptr<MockSender> spath2_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,cc_ver);
 	Ptr<MockReceiver> rpath2_1=CreateObject<MockReceiver>();
@@ -231,8 +231,33 @@ int main(int argc, char *argv[])
     TraceReceiverV1 rtrace3;
     rtrace3.OpenTraceOwdFile(log_name_3);
     rpath3_1->SetDelayTraceFunc(MakeCallback(&TraceReceiverV1::OnRecvOwd,&rtrace3));
-    
-    //InstallTcp(nodes.Get(0),nodes.Get(1),4444,20,150);
+
+    cc_counter++;
+    Ptr<MockSender> spath4_1=CreateObject<MockSender>(min_bps,max_bps,cc_counter,cc_ver);
+	Ptr<MockReceiver> rpath4_1=CreateObject<MockReceiver>();
+    nodes.Get(0)->AddApplication (spath4_1);
+    nodes.Get(1)->AddApplication (rpath4_1);
+    spath4_1->Bind(client_port+3);
+    rpath4_1->Bind(servPort+3);
+    spath4_1->SetStartTime (Seconds (appStart+150));
+    spath4_1->SetStopTime (Seconds (appStop));
+    rpath4_1->SetStartTime (Seconds (appStart+150));
+    rpath4_1->SetStopTime (Seconds (appStop));
+    remote=rpath4_1->GetLocalAddress();
+    spath4_1->ConfigurePeer(remote.GetIpv4(),remote.GetPort());
+
+    std::string log_name_4=std::string("mock-4");
+    TraceSenderV1 trace4;
+    trace4.OpenTraceRateFile(log_name_4);
+    trace4.OpenTraceLossFile(log_name_4);
+    spath4_1->SetRateTraceFunc(MakeCallback(&TraceSenderV1::OnRate,&trace4));
+    spath4_1->SetLossTraceFunc(MakeCallback(&TraceSenderV1::OnLoss,&trace4));
+
+    TraceReceiverV1 rtrace4;
+    rtrace4.OpenTraceOwdFile(log_name_4);
+    rpath4_1->SetDelayTraceFunc(MakeCallback(&TraceReceiverV1::OnRecvOwd,&rtrace4));*/
+
+    InstallTcp(nodes.Get(0),nodes.Get(1),4444,20,300);
     //Ptr<NetDevice> netDevice=nodes.Get(0)->GetDevice(0);
 	//ChangeBw change(netDevice);
     //change.Start();

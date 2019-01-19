@@ -13,7 +13,8 @@
 #include "ns3/bbr_sender_v4.h"
 #include "ns3/bbr_sender_v5.h"
 #define MAX_BUF_SIZE 1400
-#define PADDING_SIZE 500
+#define PADDING_SIZE 1000
+// the padding size affect the maximium probe banwidth, 2019-1-19,9:15
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
 namespace ns3{
 NS_LOG_COMPONENT_DEFINE("MockSender");

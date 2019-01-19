@@ -65,9 +65,9 @@ private:
 	// ST_INCREASE-->ST_DECREASE
 	// the network is in congestion status.
 	void MaybeEnterOrExitDecrease(QuicTime now,
-	                              bool min_rtt_expired,bool is_congested,int64_t round);
+	                              bool min_rtt_expired,int congestion_reason,int64_t round);
 	void CheckIfFullBandwidthReached();
-	bool CheckIfCongestion(QuicPacketNumber packet_number);
+	int CheckIfCongestion(QuicPacketNumber packet_number);
 	QuicTime::Delta GetMinRtt();
 	QuicByteCount GetTargetCongestionWindow(float gain);
 	QuicByteCount GetTargetInflightInDecrease(float gain) ;
