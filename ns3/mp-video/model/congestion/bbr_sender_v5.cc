@@ -117,12 +117,12 @@ void MyBbrSenderV5::OnAck(QuicTime event_time,
 		CalculatePacingRate();
 		return ;
 	}
-    UpdateCongestionSignal(packet_number);
+    //UpdateCongestionSignal(packet_number);
 	bool min_rtt_expired=false;
 	min_rtt_expired=event_time>(min_rtt_timestamp_ + kMinRttExpiry);
     int congestion_reason=0;
 	if(mode_==ST_INCREASE){
-		if(is_round_update){
+		/*if(is_round_update)*/{
 			congestion_reason=CheckIfCongestion(packet_number);
 		}
 	}
@@ -168,7 +168,7 @@ int MyBbrSenderV5::CheckIfCongestion(QuicPacketNumber packet_number){
 		if(packet_number>congestion_recv_cut_seq_){
 			congestion_recv_cut_seq_=last_sent_packet_;
 			if(mode_==ST_INCREASE){
-				congestion_reason+=cc_loss;
+				//congestion_reason+=cc_loss;
 			}
 		}
 	}
@@ -177,20 +177,12 @@ int MyBbrSenderV5::CheckIfCongestion(QuicPacketNumber packet_number){
 	}
     if(base_line_rtt_!=QuicTime::Delta::Infinite()){
       if(s_rtt_>kTolerableDelayFactor*base_line_rtt_&&mode_==ST_INCREASE){
-        //
-        congestion_reason|=cc_delay;
+        /*if(s_rtt_<kTolerableMaxDelayFactor*base_line_rtt_){
+                    congestion_reason|=cc_delay;
+        }*/
+    	  congestion_reason|=cc_delay;
         }  
     }
-	/*if(pacing_gain_==kPacingGain[0]||pacing_gain_==kPacingGain[1]){
-		if(congestion_reason&cc_loss){
-			congestion_reason-=cc_loss;
-		}
-	}*/
-    /*if(s_rtt_>kTolerableDelayFactor*min_rtt_&&mode_==ST_INCREASE){
-        //base_line_rtt_=QuicTime::Delta::Infinite();
-        //s_rtt_=QuicTime::Delta::Zero();
-        congestion=false;
-    }*/
 	return congestion_reason;
 }
 void MyBbrSenderV5::MaybeExitStartupOrDrain(QuicTime now){
@@ -245,6 +237,7 @@ void MyBbrSenderV5::MaybeEnterOrExitDecrease(QuicTime now,
 		}else*/{
             pacing_gain_ =0.75;	
         }
+        bdp_=GetTargetCongestionWindow(1.0);
         min_rtt_expired_=false;
 		if(min_rtt_expired){
 			min_rtt_expired_=true;
@@ -256,7 +249,7 @@ void MyBbrSenderV5::MaybeEnterOrExitDecrease(QuicTime now,
 			exit_probe_rtt_at_=now;
 		}
 		bool excess_drained=false;
-		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=GetTargetCongestionWindow(1.0)){
+		if(/*bytes_in_flight_<=GetTargetInflightInDecrease(1.0)*/bytes_in_flight_<=bdp_){
 			excess_drained=true;
 		}
 		if((min_rtt_expired_&&(now-exit_probe_rtt_at_)>4*min_rtt_record_)||excess_drained){
@@ -354,8 +347,8 @@ void MyBbrSenderV5::UpdateRttAndInflight(QuicTime now,
 	if(it!=sent_packets_map_.end()){
 		std::shared_ptr<PerPacket> packet=it->second;
 		QuicTime::Delta rtt=now-packet->sent_ts;
-        cur_rtt_=rtt;
-        cur_rtt_timestamp_=now;
+        //cur_rtt_=rtt;
+       // cur_rtt_timestamp_=now;
 		if(min_rtt_==QuicTime::Delta::Zero()){
 			min_rtt_=rtt;
 			min_rtt_timestamp_=now;
@@ -374,6 +367,23 @@ void MyBbrSenderV5::UpdateRttAndInflight(QuicTime now,
 				min_rtt_timestamp_in_decrease_=now;
 			}
 		}
+        if(mode_==ST_INCREASE){
+		if(packet_number>seq_at_backoff_){
+			if(rtt<base_line_rtt_){
+				base_line_rtt_=rtt;
+                s_rtt_=base_line_rtt_;
+                base_line_rtt_timestamp_=now;
+			}
+			if(s_rtt_==QuicTime::Delta::Zero()){
+				s_rtt_=rtt;
+			}else{
+				int64_t old_ms=s_rtt_.ToMilliseconds();
+				int64_t new_ms=rtt.ToMilliseconds();
+				int64_t smooth_ms=((kSmoothRttDen-kSmoothRttNum)*old_ms+kSmoothRttNum*new_ms)/kSmoothRttDen;
+				s_rtt_=QuicTime::Delta::FromMilliseconds(smooth_ms);
+			}
+		}
+        }
 	}
 	while(!sent_packets_map_.empty()){
 		auto it=sent_packets_map_.begin();
@@ -412,10 +422,18 @@ void MyBbrSenderV5::PrintDebugInfo(uint64_t bps,std::string state){
 		trace_state_cb_(bps,state);
 	}
 }
-void MyBbrSenderV5::UpdateCongestionSignal(QuicPacketNumber ack_seq){
+/*void MyBbrSenderV5::UpdateCongestionSignal(QuicPacketNumber ack_seq){
         if(cur_rtt_==QuicTime::Delta::Zero()){
             return ;
         }
+		if(ack_seq>seq_at_backoff_){
+			if(cur_rtt_<base_line_rtt_){
+				base_line_rtt_=cur_rtt_;
+                s_rtt_=base_line_rtt_;
+                base_line_rtt_timestamp_=cur_rtt_timestamp_;
+			}
+		}
+
         if(ack_seq>seq_at_backoff_){
 		if(s_rtt_==QuicTime::Delta::Zero()){
 			s_rtt_=cur_rtt_;
@@ -427,11 +445,5 @@ void MyBbrSenderV5::UpdateCongestionSignal(QuicPacketNumber ack_seq){
 		}
         }
 
-		if(ack_seq>seq_at_backoff_){
-			if(cur_rtt_<base_line_rtt_){
-				base_line_rtt_=cur_rtt_;
-                base_line_rtt_timestamp_=cur_rtt_timestamp_;
-			}
-		}
-}
+}*/
 }

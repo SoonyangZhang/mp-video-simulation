@@ -80,7 +80,7 @@ private:
 	void UpdateMaxBw();
 	std::string GetStateString();
 	void PrintDebugInfo(uint64_t bps,std::string state);
-    void UpdateCongestionSignal(QuicPacketNumber ack_seq);
+   // void UpdateCongestionSignal(QuicPacketNumber ack_seq);
 	QuicBandwidth min_bw_;
 	BandwidthObserver *observer_{NULL};
 	Mode mode_{ST_START};
@@ -98,8 +98,8 @@ private:
     QuicTime base_line_rtt_timestamp_{QuicTime::Zero()};
 	std::map<QuicPacketNumber,std::shared_ptr<PerPacket>> sent_packets_map_;
 	QuicTime::Delta min_rtt_;
-    QuicTime::Delta cur_rtt_{QuicTime::Delta::Zero()};
-    QuicTime cur_rtt_timestamp_{QuicTime::Zero()};
+    //QuicTime::Delta cur_rtt_{QuicTime::Delta::Zero()};
+    //QuicTime cur_rtt_timestamp_{QuicTime::Zero()};
 	QuicTime::Delta s_rtt_;
 	QuicTime min_rtt_timestamp_;
 	QuicTime::Delta min_rtt_in_decrease_;
@@ -134,6 +134,7 @@ private:
 	// The bandwidth compared to which the increase is measured.
 	QuicBandwidth bandwidth_at_last_round_;
 	QuicByteCount bytes_in_flight_{0};
+    QuicByteCount bdp_{0};
 	// The initial value of the |congestion_window_|.
 	QuicByteCount initial_congestion_window_;
     float dynamic_congestion_back_off_{0.0};
